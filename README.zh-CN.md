@@ -8,7 +8,7 @@
 
 [English](./README.md) | **简体中文** | [繁體中文](./README.zh-HK.md) | [العربية](./docs/README.ar.md) | [Deutsch](./docs/README.de.md) | [Español](./docs/README.es.md) | [Français](./docs/README.fr.md) | [Italiano](./docs/README.it.md) | [한국어](./docs/README.ko.md)
 
-<img src="./assets/overview.png" alt="lowtide overview" width="100%">
+<img src="./assets/overview.zh-CN.png" alt="lowtide overview" width="100%">
 
 </div>
 
