@@ -1,6 +1,6 @@
 {
   "name": "dsh-lowtide",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "lowtide: human-adjudicated off-peak batch task pipeline for dsh (peak/valley pricing aware)",
   "type": "module",
   "main": "lib/index.js",
