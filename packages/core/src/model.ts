@@ -94,6 +94,10 @@ export interface Task {
   deferCount?: number
   lastError?: string
   lastRun?: TaskRun
+  /** Last in-place edit timestamp (edit keeps the task id/status). */
+  editedAt?: string
+  /** Number of in-place edits applied to this task. */
+  editCount?: number
 }
 
 /** One sampling candidate: enough excerpt for the user to judge the next
