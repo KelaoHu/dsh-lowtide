@@ -5,6 +5,43 @@ All notable changes to dsh-lowtide are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-09-01
+
+### Added
+
+- In-place task editing: queued tasks can be revised after submission
+  (prompt, strategy, model, workspace, locked files) while keeping their id,
+  status and triage history. Editing re-runs the intake pipeline — fresh
+  sha256 snapshots, fresh git ref, new estimate — and the five pre-run
+  preflight checks still gate the batch at run time. Edit audit counters
+  track how often a task was edited.
+- Penetration test suite (`test/pentest/`, 30 cases) covering the trust
+  fence, path confinement, config bounds, body/SSE/file-size limits and
+  git-hook abuse.
+
+### Changed
+
+- Monorepo package directory renamed `packages/dsh` → `packages/dsh-lowtide`
+  to match the package identity. Plugin id, routes, state file and npm name
+  are unchanged — zero migration for existing installs.
+- Reasoning-effort picker shows each model's own adapter-declared labels
+  verbatim (e.g. the model's native "Low"/"High") instead of generic
+  translations.
+
+### Security
+
+- git calls now disable `core.fsmonitor`: a malicious workspace could point
+  the hook at an executable and achieve RCE during read-only git commands.
+- Locked files are confined to the workspace via realpath resolution —
+  `../../` traversal and in-workspace symlinks pointing outside are rejected.
+- Config updates enforce bounds: non-negative prices/budget, positive
+  multiplier, sane batch limits, ISO weekday 1–7, IANA timezone validation.
+- Request body capped at 1MB (413), SSE connections capped at 16 (429),
+  locked-file snapshots capped at 64MB with streamed hashing.
+- 500 responses no longer echo internal error text; state file is
+  owner-only (0600) on posix.
+- Threat model documented in SECURITY.md (loopback trust boundary).
+
 ## [0.1.1] - 2026-08-23
 
 ### Added

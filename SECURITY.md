@@ -40,3 +40,25 @@ acknowledgement within 72 hours. If the report is confirmed, we will:
   Protect your backups accordingly.
 - **Credentials**: the plugin neither ships nor stores model credentials; it
   uses the models configured in your dsh installation.
+
+## Threat Model (loopback trust boundary)
+
+The plugin's HTTP API (`/ds-lowtide/*`) is **unauthenticated by design**: the
+trust boundary is the loopback interface plus the Host/Origin same-origin
+fence. Concretely:
+
+- **Any local process can drive the queue.** Whoever can open a TCP
+  connection to 127.0.0.1 on the dsh port can submit tasks, approve them, and
+  trigger `batch/run-now`. There is no token, no session, no ACL.
+- **A queued task prompt is code waiting to execute.** Off-peak batches run
+  unattended with `approval=never` presets, so a prompt submitted via the API
+  becomes agentic activity on your workspace without further confirmation.
+- **`approve-all` and `run-now` are intentional escape hatches.** They exist
+  so the operator can force-run the queue manually; they are not gated and
+  this will not change — gating them would break the local-operator workflow
+  the plugin is built around.
+
+**Recommendation**: run dsh-lowtide only on a trusted single-user machine.
+Do not expose the port beyond loopback (no LAN binding, no unauthenticated
+reverse proxy); for remote access use an SSH tunnel. Treat every local
+process as capable of scheduling unattended LLM work on your behalf.
