@@ -50,6 +50,21 @@ export async function submitTask(input: {
   return await res.json() as TaskResponse
 }
 
+/**
+ * Edit an existing task IN PLACE (status preserved — a pending-review task
+ * stays pending-review, a queued one stays queued). The request body is the
+ * same full form used by submitTask; the server re-runs intake and refreshes
+ * the content fields, keeping id/createdAt/status/triage records.
+ */
+export async function editTask(id: string, input: Parameters<typeof submitTask>[0]): Promise<TaskResponse> {
+  const res = await fetch(`/ds-lowtide/tasks/${encodeURIComponent(id)}/edit`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  return await res.json() as TaskResponse
+}
+
 export async function triage(id: string, action: 'approve' | 'defer' | 'drop' | 'cancel'): Promise<unknown> {
   const res = await fetch(`/ds-lowtide/tasks/${id}/${action}`, { method: 'POST' })
   return await res.json() as unknown
@@ -187,7 +202,7 @@ export interface AvailableModel {
   name: string
   priceKnown: boolean
   inputModalities?: string[]
-  reasoningEfforts?: string[]
+  reasoningEfforts?: ReadonlyArray<{ id: string; name: string; description?: string }>
   defaultReasoningEffort?: string
 }
 

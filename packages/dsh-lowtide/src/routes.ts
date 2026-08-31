@@ -1,6 +1,7 @@
 /**
  * Lowtide HTTP API (PLAN T1.3 / §7.3, Phase 1 subset) under /ds-lowtide.
- * The Host/Origin trust fence (T2.8) is not yet mounted — the server binds
+ * The Host/Origin trust fence (T2.8/B2) IS mounted — every request passes
+ * isTrustedApiRequest first (loopback Host + same-origin). The server binds
  * loopback only and the README deployment guidance (SSH tunnel) is Phase 4.
  */
 import type { Context } from '@deepseek-ai/cordis'
@@ -26,7 +27,7 @@ import { intake } from './intake.ts'
 import { reportDateLabel } from './runner.ts'
 import { isTrustedApiRequest } from './api-trust.ts'
 import type { Scheduler } from './scheduler.ts'
-import { canTransition, type TriageAction } from './state-machine.ts'
+import { canTransition, canEdit, type TriageAction } from './state-machine.ts'
 import { configUpdateSchema, type ConfigUpdate, LowtideStore } from './store.ts'
 import { listWorkspaceSessions } from './session-picker.ts'
 import { listAvailableModels } from './models.ts'
@@ -41,6 +42,9 @@ export interface Routes {
 
 /** 活跃的 SSE 客户端;每次状态变更或心跳时推送 state 事件(PLAN §5.3/§7.3)。 */
 const sseClients = new Set<ServerResponse>()
+
+/** Hard cap on concurrent SSE connections (pentest P7). */
+const MAX_SSE_CLIENTS = 16
 
 async function broadcastState(ctx: Context, routes: Routes): Promise<void> {
   if (sseClients.size === 0) return
@@ -61,6 +65,14 @@ async function broadcastState(ctx: Context, routes: Routes): Promise<void> {
 const MAX_BODY_BYTES = 1024 * 1024
 const BODY_TIMEOUT_MS = 15_000
 
+/** Error carrying an HTTP status — the catch-all replies with it verbatim
+ *  (message is our own controlled copy) instead of a generic 500. */
+class HttpError extends Error {
+  constructor(public readonly status: number, message: string) {
+    super(message)
+  }
+}
+
 function jsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
   return new Promise((resolve, reject) => {
     let raw = ''
@@ -79,7 +91,7 @@ function jsonBody(req: IncomingMessage): Promise<Record<string, unknown>> {
       // Byte-accurate cap: string length undercounts multibyte characters.
       bytesReceived += chunk.length
       if (bytesReceived > MAX_BODY_BYTES) {
-        fail(new Error('请求体过大（>1MB）'))
+        fail(new HttpError(413, '请求体过大（>1MB）'))
         req.destroy()
         return
       }
@@ -141,6 +153,13 @@ export function registerRoutes(ctx: Context, routes: Routes): void {
         }
 
         if (path === '/ds-lowtide/events' && req.method === 'GET') {
+          // Connection cap (pentest P7): each SSE client holds a socket and a
+          // broadcast slot forever — refuse beyond 16 instead of letting a
+          // local process exhaust the host.
+          if (sseClients.size >= MAX_SSE_CLIENTS) {
+            reply(res, 429, { ok: false, error: '事件流连接数已达上限' })
+            return
+          }
           res.writeHead(200, {
             'content-type': 'text/event-stream; charset=utf-8',
             'cache-control': 'no-cache',
@@ -149,6 +168,7 @@ export function registerRoutes(ctx: Context, routes: Routes): void {
           res.write(': connected\n\n')
           sseClients.add(res)
           req.on('close', () => { sseClients.delete(res) })
+          res.on('close', () => { sseClients.delete(res) })
           void broadcastState(ctx, routes)
           return
         }
@@ -352,6 +372,63 @@ export function registerRoutes(ctx: Context, routes: Routes): void {
           return
         }
 
+        // /tasks/:id/edit — edit a task IN PLACE (status preserved). Kept
+        // separate from the :action regex below because edit carries a body
+        // and is not a triage transition. Allowed statuses: pending-review,
+        // queued, deferred (canEdit).
+        const editMatch = /^\/ds-lowtide\/tasks\/([^/]+)\/edit$/.exec(path)
+        if (editMatch !== null && req.method === 'POST') {
+          const id = editMatch[1]
+          const task = store.taskById(id)
+          if (task === undefined) {
+            reply(res, 404, { ok: false, error: '任务不存在' })
+            return
+          }
+          if (!canEdit(task.status)) {
+            reply(res, 409, { ok: false, error: `任务状态 ${task.status} 不允许编辑` })
+            return
+          }
+          const body = await jsonBody(req)
+          // Re-run the full intake pipeline (schema, workspace, file
+          // snapshots, git ref, estimate) against the edited form, then merge
+          // the fresh content onto the existing task. Continuation sessions
+          // are re-validated like on create (a malformed id is rejected).
+          if (typeof body?.continuesFromSession === 'string' && body.continuesFromSession !== '') {
+            if (!/^[A-Za-z0-9._-]+$/.test(body.continuesFromSession)) {
+              reply(res, 400, { ok: false, error: '会话标识不合法' })
+              return
+            }
+          }
+          if (typeof body?.modelProvider === 'string' && body.modelProvider !== '') {
+            const knownProviders = ctx.llm?.listProviders() ?? []
+            if (knownProviders.length > 0 && !knownProviders.some((p) => p.id === body.modelProvider)) {
+              reply(res, 400, { ok: false, error: `模型提供方不存在：${body.modelProvider}` })
+              return
+            }
+          }
+          const result = await intake(body, process.cwd(), {
+            autonomy: store.config.autonomy,
+            modelId: typeof body.model === 'string' && body.model !== ''
+              ? body.model
+              : ctx.agentDefaultModel.currentSelection().model,
+            prices: store.config.prices,
+          })
+          if (!result.ok || result.task === undefined) {
+            reply(res, 400, { ok: false, error: result.error ?? '编辑失败' })
+            return
+          }
+          // Merge the re-intaken content onto the existing task: the id,
+          // createdAt, status, triage records and edit audit fields survive
+          // (editTask strips them from the patch); everything content-related
+          // is refreshed. Workspace changes re-anchor the task, so the new
+          // gitRef/file snapshots from intake are what the preflight will
+          // check against.
+          const edited = store.editTask(id, result.task)
+          void broadcastState(ctx, routes)
+          reply(res, 200, { ok: true, task: edited })
+          return
+        }
+
         // /tasks/:id/:action
         const match = /^\/ds-lowtide\/tasks\/([^/]+)\/(approve|defer|drop|cancel|delete|retry|restore|choose-candidate)$/.exec(path)
         if (match !== null && req.method === 'POST') {
@@ -433,7 +510,14 @@ export function registerRoutes(ctx: Context, routes: Routes): void {
 
         reply(res, 404, { ok: false, error: `unknown route ${req.method} ${path}` })
       } catch (error) {
-        reply(res, 500, { ok: false, error: error instanceof Error ? error.message : String(error) })
+        if (error instanceof HttpError) {
+          reply(res, error.status, { ok: false, error: error.message })
+          return
+        }
+        // Never echo internal error text to the client (it may carry paths /
+        // stack fragments); details stay in the host log.
+        ctx.logger('lowtide').warn('request failed: %s', error instanceof Error ? error.message : String(error))
+        reply(res, 500, { ok: false, error: '服务器内部错误' })
       }
     })()
   }

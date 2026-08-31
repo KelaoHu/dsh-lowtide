@@ -60,6 +60,23 @@ lowtide 是 DeepSeek Harness (dsh) 的一个插件。它解决的问题其实很
 
 **核心语义**：只有 `queued` 状态的任务会被闲时 runner 拾取；`pending-review` 是人与机器之间的海关——机器永远不能自己把任务推过这道关（采样模式的"选哪份"也是人的事）。
 
+## 安装（用户）
+
+从 [GitHub Releases](https://github.com/KelaoHu/dsh-lowtide/releases/latest) 下载预构建的 `dsh-lowtide.tgz`（或在 dsh 插件市场中一键安装），无需本地构建。桌面端与网页端使用同一份产物，按需要装入对应 profile：
+
+```powershell
+# 桌面端（DSH Desktop 客户端使用的 profile）
+dsh plugin --profile desktop add dsh-lowtide.tgz
+
+# 网页端（浏览器访问的 dsh web）
+dsh plugin --profile web add dsh-lowtide.tgz
+dsh web
+```
+
+- 网页端需要 `@deepseek-ai/dsh` ≥ 0.1.1-rc.2（`npm i -g @deepseek-ai/dsh` 或随桌面客户端附带），与桌面端同代引擎可同时服务两端。
+- 两个 profile 的状态文件相互独立（`DSH_PROFILE` 隔离），桌面端与网页端可并行运行。
+- 状态文件：`$DSH_HOME/lowtide.json`（web 端为 `$DSH_HOME/profiles/web/lowtide.json`）。
+
 ## 安装（开发）
 
 ```powershell
@@ -70,8 +87,8 @@ pnpm.cmd --filter dsh-lowtide bundle      # 构建 dsh 宿主半 + 客户端 bun
 
 # 首次：把插件 link 进 profile（client 半按包名从 profile 目录 resolve）
 # 桌面端与网页端通用同一份产物，按需要装入对应 profile：
-npx.cmd --yes @deepseek-ai/dsh@0.1.0-rc.7 plugin --profile desktop add ./packages/dsh   # 桌面端
-npx.cmd --yes @deepseek-ai/dsh@0.1.0-rc.7 plugin --profile web add ./packages/dsh       # 网页端
+npx.cmd --yes @deepseek-ai/dsh@0.1.0-rc.7 plugin --profile desktop add ./packages/dsh-lowtide   # 桌面端
+npx.cmd --yes @deepseek-ai/dsh@0.1.0-rc.7 plugin --profile web add ./packages/dsh-lowtide       # 网页端
 
 # 启动（本地源码 checkout 或 npx 均可）
 pnpm.cmd dev   # = dsh web --patch ./cordis.dev.yml

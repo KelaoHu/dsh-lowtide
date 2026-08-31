@@ -26,7 +26,7 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
 
-  packages/dsh:
+  packages/dsh-lowtide:
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: ^4.0.1

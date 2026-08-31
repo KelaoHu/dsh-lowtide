@@ -9,7 +9,10 @@ const GIT_TIMEOUT_MS = 3000
 
 function git(workspace: string, args: string[]): Promise<string | null> {
   return new Promise((resolve) => {
-    execFile('git', args, { cwd: workspace, timeout: GIT_TIMEOUT_MS, windowsHide: true }, (error, stdout) => {
+    // '-c core.fsmonitor=' disables the fsmonitor hook: a malicious workspace
+    // could point .git/config core.fsmonitor at an executable and get RCE the
+    // moment we run any read-only git command in it (pentest P1).
+    execFile('git', ['-c', 'core.fsmonitor=', ...args], { cwd: workspace, timeout: GIT_TIMEOUT_MS, windowsHide: true }, (error, stdout) => {
       if (error) return resolve(null)
       resolve(stdout.trim())
     })

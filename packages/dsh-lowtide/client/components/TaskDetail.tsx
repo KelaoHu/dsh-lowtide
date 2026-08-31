@@ -10,12 +10,23 @@ import { CandidatesView } from './CandidatesView.tsx'
 import { Money } from './atoms.tsx'
 import styles from './TaskDetail.module.css'
 
-export function TaskDetail({ task, t, onClose }: { task: HostTask; t: NsTranslate; onClose: () => void }): React.JSX.Element {
+export function TaskDetail({ task, t, onClose, onEdit }: {
+  task: HostTask
+  t: NsTranslate
+  onClose: () => void
+  /** Opens the in-place edit modal (wired when the status allows editing). */
+  onEdit?: (task: HostTask) => void
+}): React.JSX.Element {
   const strat = strategyLabel(t, task.lastRun?.strategy ?? task.strategy, task.lastRun?.roundsRun)
+  // pending-review / queued / deferred can be edited in place.
+  const editable = task.status === 'pending-review' || task.status === 'queued' || task.status === 'deferred'
   return (
     <Modal open onClose={onClose} title={t('detail.title')} description={`${statusLabel(t, task.status)} · ${task.id}`}
       footer={
         <div className={styles.modalFooter}>
+          {editable && onEdit !== undefined && (
+            <Button variant="outline" size="md" onClick={() => onEdit(task)}>{t('action.edit')}</Button>
+          )}
           <Button variant="primary" size="md" onClick={onClose}>{t('detail.close')}</Button>
         </div>
       }>
@@ -26,6 +37,9 @@ export function TaskDetail({ task, t, onClose }: { task: HostTask; t: NsTranslat
           <span className={styles.detailItem}>{t('detail.priority')} <span className={styles.detailValue}>P{task.priority}</span></span>
           <span className={styles.detailItem}>{t('detail.permission')} <span className={styles.detailValue}>{task.permissionPreset}</span></span>
           <span className={styles.detailItem}>{t('detail.created')} <span className={styles.detailValue}>{new Date(task.createdAt).toLocaleString()}</span></span>
+          {(task.editCount ?? 0) > 0 && (
+            <span className={styles.detailItem}>{t('detail.edited')} <span className={styles.detailValue}>{t('detail.editedCount', { count: task.editCount ?? 0 })}</span></span>
+          )}
           {task.model !== undefined && (
             <span className={styles.detailItem}>{t('detail.model')} <span className={styles.detailValue}>{task.modelProvider !== undefined ? `${task.modelProvider} / ${task.model}` : task.model}</span></span>
           )}

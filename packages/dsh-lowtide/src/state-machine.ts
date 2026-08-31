@@ -7,6 +7,20 @@
 export type TriageAction = 'approve' | 'defer' | 'drop' | 'cancel' | 'retry' | 'delete' | 'restore' | 'choose-candidate'
 
 /**
+ * Statuses whose content may be EDITED in place (edit keeps the status —
+ * a pending-review task stays pending-review, a queued one stays queued).
+ * deferred is included: it has not run yet, so editing it and waiting for
+ * the next window is natural (otherwise the user would need restore → edit
+ * → approve, three steps for one fix).
+ */
+export const EDITABLE_STATUSES = ['pending-review', 'queued', 'deferred'] as const
+
+/** Whether a task in this status may be edited in place. */
+export function canEdit(status: string): boolean {
+  return (EDITABLE_STATUSES as readonly string[]).includes(status)
+}
+
+/**
  * A transition is rejected unless the current status allows it — otherwise a
  * running task could be re-queued behind the agent's back and the persisted
  * state would fight the live execution.

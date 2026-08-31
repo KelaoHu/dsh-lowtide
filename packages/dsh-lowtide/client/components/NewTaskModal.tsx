@@ -68,7 +68,16 @@ export function NewTaskModal({ open, t, defaultAutonomy, onClose }: {
               flat.push({
                 id: m.id,
                 name: m.name,
-                provider: p.displayName || p.provider,
+                // The option value encodes "provider\0model" and the server
+                // validates modelProvider against ctx.llm.listProviders() ids,
+                // so the SUBMITTED provider must be the canonical id — never
+                // the display name (which may differ, e.g. deepseek-official →
+                // "DeepSeek"). The display name is kept separately for the
+                // optgroup label only.
+                provider: p.provider,
+                ...(p.displayName !== undefined && p.displayName !== '' && p.displayName !== p.provider
+                  ? { providerLabel: p.displayName }
+                  : {}),
                 ...(m.reasoningEfforts !== undefined ? { reasoningEfforts: m.reasoningEfforts } : {}),
                 ...(m.defaultReasoningEffort !== undefined ? { defaultReasoningEffort: m.defaultReasoningEffort } : {}),
               })

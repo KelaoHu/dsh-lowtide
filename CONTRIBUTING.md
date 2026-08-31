@@ -13,7 +13,7 @@ packages/
 ```
 
 - `packages/core` has no dsh dependency and is fully unit-testable.
-- `packages/dsh` depends on the dsh runtime (`@deepseek-ai/*`) for both its
+- `packages/dsh-lowtide` depends on the dsh runtime (`@deepseek-ai/*`) for both its
   host services and its client bundle.
 
 ## Prerequisites
@@ -55,14 +55,14 @@ To run the plugin inside a live dsh web instance:
 pnpm --filter dsh-lowtide dev        # runs `dsh web --patch ./cordis.dev.yml`
 ```
 
-The e2e suite (`packages/dsh/test/e2e`) additionally requires a running dsh
+The e2e suite (`packages/dsh-lowtide/test/e2e`) additionally requires a running dsh
 web instance and real model access — see `playwright.config.ts` and the spec
 headers for preconditions.
 
 ## Coding conventions
 
 - TypeScript strict; no `any` unless unavoidable (prefer a narrow cast).
-- Chinese user-facing copy lives in `packages/dsh/client/i18n.ts` (zh + en
+- Chinese user-facing copy lives in `packages/dsh-lowtide/client/i18n.ts` (zh + en
   must stay key-identical).
 - New behavior must ship with unit tests in `packages/<pkg>/test/`.
 - Keep `packages/core` free of dsh imports.

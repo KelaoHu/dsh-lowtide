@@ -7,7 +7,7 @@
  * and rely on the README's single-instance note.
  */
 import { createHash } from 'node:crypto'
-import { createReadStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, createReadStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { z } from 'zod'
@@ -75,6 +75,10 @@ const taskSchema = z.object({
   deferCount: z.number().optional(),
   lastError: z.string().optional(),
   lastRun: taskRunSchema.optional(),
+  /** Last in-place edit timestamp (edit keeps the task id/status). */
+  editedAt: z.string().optional(),
+  /** Number of in-place edits applied to this task. */
+  editCount: z.number().int().min(0).optional(),
 })
 
 const reportRowSchema = z.object({
@@ -141,17 +145,25 @@ const batchSchema = z.object({
   maxConcurrency: z.number().int().min(1).max(8).optional(),
 })
 
-// Strict variants for PUT /config: reject malformed times and timezones
-// before they can reach localParts/parseWindowRange and crash the scheduler.
+// Strict variants for PUT /config: reject malformed times, timezones and
+// out-of-range numbers before they can reach localParts/parseWindowRange and
+// crash the scheduler (pentest P5: negative budgets/prices, zero multipliers,
+// absurd batch bounds). NOTE: `days` is ISO weekdays 1=Mon … 7=Sun (see
+// WindowCfg in lowtide-core), so the range is 1–7, NOT 0–6.
 const strictWindowSchema = windowSchema.extend({
   start: z.string().regex(HHMM, '时间须为 HH:MM（00:00–23:59）'),
   end: z.string().regex(HHMM, '时间须为 HH:MM（00:00–23:59）'),
   tz: z.string().refine(isIanaTz, '非法时区').optional(),
+  days: z.array(z.number().int().min(1).max(7)).optional(),
+  multiplier: z.number().gt(0, '倍率必须大于 0').optional(),
 })
 
 const strictBatchSchema = batchSchema.extend({
   window: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/, '窗口须为 HH:MM-HH:MM'),
   tz: z.string().refine(isIanaTz, '非法时区').optional(),
+  gateLeadMin: z.number().min(0).max(120),
+  maxTasksPerNight: z.number().int().min(1),
+  maxDurationMin: z.number().min(1),
 })
 
 const configSchema = z.object({
@@ -175,10 +187,10 @@ export const configUpdateSchema = z.object({
   batch: strictBatchSchema.partial().optional(),
   windows: z.array(strictWindowSchema).optional(),
   prices: z.record(z.string(), z.object({
-    peak: z.object({ input: z.number(), inputCached: z.number(), output: z.number() }),
-    off: z.object({ input: z.number(), inputCached: z.number(), output: z.number() }),
+    peak: z.object({ input: z.number().min(0), inputCached: z.number().min(0), output: z.number().min(0) }),
+    off: z.object({ input: z.number().min(0), inputCached: z.number().min(0), output: z.number().min(0) }),
   })).optional(),
-  budgetDailyYuan: z.number().optional(),
+  budgetDailyYuan: z.number().min(0).optional(),
   maxReportHistory: z.number().int().min(0).optional(),
 })
 
@@ -245,21 +257,28 @@ function convertLegacyState(node: unknown): unknown {
   return node
 }
 
-/** Hard cap for locked-file snapshots: bigger files are refused (streamed
- *  hashing would still work, but a multi-GB locked file is almost certainly
- *  a mistake and would stall the batch). */
-export const MAX_SNAPSHOT_BYTES = 1024 * 1024 * 1024
+/** Hard cap for locked-file snapshots: bigger files are refused (pentest P8).
+ *  Hashing streams, but a multi-hundred-MB locked file is almost certainly a
+ *  mistake and would stall the batch. */
+export const MAX_SNAPSHOT_BYTES = 64 * 1024 * 1024
 
 /**
  * File snapshot: sha256 + size via a STREAM (readFileSync would load a
- * multi-GB file fully into memory — Kimi review H3).
+ * multi-GB file fully into memory — Kimi review H3). The size cap is checked
+ * via stat BEFORE opening the stream so an oversized file is rejected without
+ * reading a single byte.
  */
 export async function snapshotFile(path: string): Promise<{ sha256: string; size: number }> {
+  const { size: statSize } = statSync(path)
+  if (statSize > MAX_SNAPSHOT_BYTES) {
+    throw new Error(`文件过大（>${Math.floor(MAX_SNAPSHOT_BYTES / 1024 / 1024)}MB），不适合作为锁定文件`)
+  }
   const hash = createHash('sha256')
   let size = 0
   for await (const chunk of createReadStream(path)) {
     hash.update(chunk)
     size += chunk.length
+    // Backstop: the file grew between stat and read.
     if (size > MAX_SNAPSHOT_BYTES) {
       throw new Error(`文件过大（>${Math.floor(MAX_SNAPSHOT_BYTES / 1024 / 1024)}MB），不适合作为锁定文件`)
     }
@@ -359,6 +378,11 @@ export class LowtideStore {
         rmSync(this.file, { force: true })
         renameSync(tmp, this.file)
       }
+      // The state file carries full task prompts and paths — keep it
+      // owner-only on posix (Windows ACLs make chmod a no-op there, skip it).
+      if (process.platform !== 'win32') {
+        try { chmodSync(this.file, 0o600) } catch { /* best-effort */ }
+      }
     } finally {
       // Always attempt to remove the tmp file — it may have been left behind
       // by a failed write or a crashed rename (second rename also failed).
@@ -437,6 +461,28 @@ export class LowtideStore {
       if (task === undefined) return undefined
       task.status = status
       if (patch !== undefined) Object.assign(task, patch)
+      return task
+    })
+  }
+
+  /**
+   * Edit a task IN PLACE: the id, createdAt, status and triage records are
+   * untouched; every content field (prompt/files/workspace/gitRef/strategy/
+   * model/estimates/…) is replaced from the validated patch, the stale
+   * lastError is cleared, and the edit audit counters are bumped. The route
+   * layer must guard statuses via canEdit() before calling this.
+   */
+  editTask(id: string, patch: Partial<Task>): Task | undefined {
+    return this.mutate(() => {
+      const task = this.state.tasks.find((t) => t.id === id)
+      if (task === undefined) return undefined
+      const editedAt = new Date().toISOString()
+      // Content-only merge: never touch identity, lifecycle or triage fields.
+      const { id: _id, createdAt: _createdAt, status: _status, triagedAt: _triagedAt, triagedBy: _triagedBy, editedAt: _editedAt, editCount: _editCount, ...content } = patch
+      Object.assign(task, content)
+      task.lastError = undefined
+      task.editedAt = editedAt
+      task.editCount = (task.editCount ?? 0) + 1
       return task
     })
   }

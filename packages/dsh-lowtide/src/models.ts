@@ -17,8 +17,8 @@ export interface AvailableModel {
   priceKnown: boolean
   /** Adapter-declared input modalities (e.g. ["text", "image"]) — optional. */
   inputModalities?: string[]
-  /** Supported reasoning effort ids (e.g. ["off","low","high","max"]). */
-  reasoningEfforts?: string[]
+  /** Supported reasoning efforts with the adapter's native labels. */
+  reasoningEfforts?: ReadonlyArray<{ id: string; name: string; description?: string }>
   /** The model's default reasoning effort id, when the adapter declares one. */
   defaultReasoningEffort?: string
 }
@@ -45,13 +45,20 @@ export async function listAvailableModels(
     try {
       const listed = await ctx.llm.listModels(p.id)
       models = await Promise.all(listed.map(async (m): Promise<AvailableModel> => {
-        let reasoningEfforts: string[] | undefined
+        let reasoningEfforts: AvailableModel['reasoningEfforts']
         let defaultReasoningEffort: string | undefined
         try {
           const info = await ctx.llm.resolveModelInfo(p.id, m.id)
           const efforts = info?.reasoning?.efforts
           if (Array.isArray(efforts) && efforts.length > 0) {
-            reasoningEfforts = efforts.map((e) => (e as { id: string }).id)
+            reasoningEfforts = efforts.map((e) => {
+              const { id, name, description } = e as { id: string; name?: string; description?: string }
+              return {
+                id,
+                name: name ?? id,
+                ...(description !== undefined ? { description } : {}),
+              }
+            })
           }
           if (typeof info?.reasoning?.defaultEffort === 'string') {
             defaultReasoningEffort = info.reasoning.defaultEffort

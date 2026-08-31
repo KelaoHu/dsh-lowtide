@@ -4,7 +4,7 @@
  * bar by status. Shared by the 待执行 and 已结束 sections.
  */
 import { useState } from 'react'
-import { IconCheckOutline16, IconCloseOutline16, IconPauseOutline16, IconRefreshOutline16, IconTrashOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { IconCheckOutline16, IconCloseOutline16, IconEditOutline16, IconPauseOutline16, IconRefreshOutline16, IconTrashOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { deleteTask, retryTask, triage } from '../api.ts'
 import { refreshNow, showToast, type HostTask } from '../store.ts'
 import { type NsTranslate } from '../i18n.ts'
@@ -21,23 +21,28 @@ function statusClass(status: string): string {
 }
 
 /** Icons for the per-row actions (16px outline set, currentColor). */
-function RowActionIcon({ kind }: { kind: 'approve' | 'defer' | 'drop' | 'retry' | 'delete' }): React.JSX.Element {
+function RowActionIcon({ kind }: { kind: 'approve' | 'defer' | 'drop' | 'retry' | 'delete' | 'edit' }): React.JSX.Element {
   if (kind === 'approve') return <IconCheckOutline16 />
   if (kind === 'defer') return <IconPauseOutline16 />
   if (kind === 'drop') return <IconCloseOutline16 />
   if (kind === 'retry') return <IconRefreshOutline16 />
+  if (kind === 'edit') return <IconEditOutline16 />
   return <IconTrashOutline16 />
 }
 
-export function TaskRow({ task, t, onOpenDetail }: {
+export function TaskRow({ task, t, onOpenDetail, onEdit }: {
   task: HostTask
   t: NsTranslate
   onOpenDetail: (task: HostTask) => void
+  /** Opens the in-place edit modal (only wired for editable statuses). */
+  onEdit?: (task: HostTask) => void
 }): React.JSX.Element {
   const pending = task.status === 'pending-review'
   const deferred = task.status === 'deferred'
   const locked = task.status === 'running' || task.status === 'preflight'
   const failed = task.status === 'failed' || task.status === 'timeout' || task.status === 'stale'
+  // pending-review / queued / deferred can be edited in place.
+  const editable = (pending || deferred || task.status === 'queued') && !locked
   const [confirming, setConfirming] = useState(false)
 
   async function handleDelete(): Promise<void> {
@@ -58,6 +63,13 @@ export function TaskRow({ task, t, onOpenDetail }: {
   }
 
   const actions: React.JSX.Element[] = []
+  if (editable && onEdit !== undefined) {
+    actions.push(
+      <button key="edit" type="button" className={styles.iconBtn} title={t('action.edit')} onClick={() => onEdit(task)}>
+        <RowActionIcon kind="edit" />
+      </button>,
+    )
+  }
   if (pending || deferred) {
     actions.push(
       <button key="approve" type="button" className={styles.iconBtn} title={t('action.approve')} onClick={() => { void triage(task.id, 'approve').then(refreshNow) }}>

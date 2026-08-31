@@ -4,7 +4,7 @@
  * running tasks.
  */
 import { describe, expect, test } from 'vitest'
-import { canTransition, type TriageAction } from '../src/state-machine.ts'
+import { canTransition, canEdit, EDITABLE_STATUSES, type TriageAction } from '../src/state-machine.ts'
 
 const STATUSES = [
   'pending-review', 'queued', 'deferred', 'dropped', 'preflight', 'running',
@@ -45,5 +45,19 @@ describe('canTransition', () => {
     expect(canTransition('running', 'drop')).toBe(false)
     expect(canTransition('preflight', 'delete')).toBe(false)
     expect(canTransition('running', 'delete')).toBe(false)
+  })
+})
+
+describe('canEdit', () => {
+  test('edit is allowed exactly for pending-review / queued / deferred', () => {
+    for (const status of STATUSES) {
+      const expected = (EDITABLE_STATUSES as readonly string[]).includes(status)
+      expect(canEdit(status), `${status} → canEdit`).toBe(expected)
+    }
+    expect(EDITABLE_STATUSES).toEqual(['pending-review', 'queued', 'deferred'])
+  })
+
+  test('unknown statuses are never editable', () => {
+    expect(canEdit('mystery')).toBe(false)
   })
 })

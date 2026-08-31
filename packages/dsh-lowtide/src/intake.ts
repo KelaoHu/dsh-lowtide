@@ -4,8 +4,8 @@
  * land the task in pending-review — the human adjudication gate (PLAN §2.1).
  */
 import { randomUUID } from 'node:crypto'
-import { existsSync } from 'node:fs'
-import { isAbsolute, resolve } from 'node:path'
+import { existsSync, realpathSync } from 'node:fs'
+import { isAbsolute, resolve, sep } from 'node:path'
 import { z } from 'zod'
 import {
   DEFAULT_ESTIMATE_MINUTES,
@@ -76,11 +76,20 @@ export async function intake(
   }
 
   // File snapshot: absolutize against the workspace, hash + size, refuse missing files.
+  // Confinement (pentest P3/P4): the REAL path (symlinks resolved) must stay
+  // inside the real workspace root — `../../outside` and in-workspace symlinks
+  // pointing outside are both rejected. The workspace itself stays "exists is
+  // enough" — picking any local directory as workspace is by design.
+  const workspaceRoot = realpathSync(workspace)
   const files: Task['files'] = []
   for (const entry of data.files) {
     const raw = typeof entry === 'string' ? entry : entry.path
     const abs = isAbsolute(raw) ? resolve(raw) : resolve(workspace, raw)
     if (!existsSync(abs)) return { ok: false, error: `文件不存在：${abs}` }
+    const real = realpathSync(abs)
+    if (real !== workspaceRoot && !real.startsWith(workspaceRoot + sep)) {
+      return { ok: false, error: `文件路径越界（须位于工作区内）：${raw}` }
+    }
     try {
       const snap = await snapshotFile(abs)
       files.push({ path: abs, sha256: snap.sha256, size: snap.size })

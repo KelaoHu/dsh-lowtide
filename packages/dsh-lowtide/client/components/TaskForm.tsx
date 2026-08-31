@@ -28,11 +28,21 @@ export type AutonomyId = 'l1' | 'l2' | 'l3'
 export type SessionModeId = 'new' | 'continue'
 export type TaskModelId = string
 
+export interface ReasoningEffortOption {
+  id: string
+  /** Adapter-native label (e.g. "Low"/"High"); falls back to the raw id. */
+  name: string
+  description?: string
+}
+
 export interface TaskFormModel {
   id: string
   name: string
+  /** Canonical provider id — this is what gets submitted as modelProvider. */
   provider: string
-  reasoningEfforts?: string[]
+  /** Human-friendly provider name for the optgroup label (defaults to the id). */
+  providerLabel?: string
+  reasoningEfforts?: ReadonlyArray<ReasoningEffortOption>
   defaultReasoningEffort?: string
 }
 
@@ -113,23 +123,16 @@ function randomPick(localized: string): string {
   return options[Math.floor(Math.random() * options.length)]
 }
 
-/** Localized label for a reasoning effort id; unknown ids fall back to raw. */
-function reasoningLabel(effort: string, t: NsTranslate): string {
-  if (effort === 'off') return t('reasoning.off')
-  if (effort === 'minimal') return t('reasoning.minimal')
-  if (effort === 'low') return t('reasoning.low')
-  if (effort === 'medium') return t('reasoning.medium')
-  if (effort === 'high') return t('reasoning.high')
-  if (effort === 'xhigh') return t('reasoning.xhigh')
-  if (effort === 'max') return t('reasoning.max')
-  return effort
+/** Label for a reasoning effort: the adapter's native name, or the raw id. */
+function reasoningLabel(effort: ReasoningEffortOption): string {
+  return effort.name !== '' ? effort.name : effort.id
 }
 
-/** Reasoning effort ids to offer for a given model (fallback = standard set). */
-function reasoningOptions(model: TaskFormModel | undefined): string[] {
+/** Reasoning efforts to offer for a given model (fallback = standard set). */
+function reasoningOptions(model: TaskFormModel | undefined): ReasoningEffortOption[] {
   const efforts = model?.reasoningEfforts
-  if (efforts !== undefined && efforts.length > 0) return efforts
-  return ['off', 'low', 'high', 'max']
+  if (efforts !== undefined && efforts.length > 0) return [...efforts]
+  return ['off', 'low', 'high', 'max'].map((id) => ({ id, name: id }))
 }
 
 /** 运行模式（自治级别）按钮组：标签 / 悬停一句话 / 选中后说明行。 */
@@ -399,20 +402,24 @@ export function TaskForm(props: {
                           const resetReasoning = values.reasoning !== 'follow'
                             && efforts !== undefined
                             && efforts.length > 0
-                            && !efforts.includes(values.reasoning)
+                            && !efforts.some((e) => e.id === values.reasoning)
                           onChange(resetReasoning ? { ...decoded, reasoning: 'follow' } : decoded)
                         }}
                       >
                         <option value="">{t('modal.modelFollowGlobal')}</option>
-                        {[...byProvider.keys()].map((provider) => (
-                          <optgroup key={provider} label={provider}>
-                            {(byProvider.get(provider) ?? []).map((m) => (
-                              <option key={encode(m)} value={encode(m)}>
-                                {m.name}
-                              </option>
-                            ))}
-                          </optgroup>
-                        ))}
+                        {[...byProvider.keys()].map((provider) => {
+                          const group = byProvider.get(provider) ?? []
+                          const label = group[0]?.providerLabel ?? provider
+                          return (
+                            <optgroup key={provider} label={label}>
+                              {group.map((m) => (
+                                <option key={encode(m)} value={encode(m)}>
+                                  {m.name}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )
+                        })}
                       </select>
                     )
                   }
@@ -446,8 +453,8 @@ export function TaskForm(props: {
                   {(() => {
                     const selectedModel = props.models?.find((m) => m.id === values.model)
                     return reasoningOptions(selectedModel).map((effort) => (
-                      <Pill key={effort} active={values.reasoning === effort} onClick={() => onChange({ reasoning: effort as ReasoningId })}>
-                        {reasoningLabel(effort, t)}
+                      <Pill key={effort.id} active={values.reasoning === effort.id} onClick={() => onChange({ reasoning: effort.id as ReasoningId })}>
+                        {reasoningLabel(effort)}
                       </Pill>
                     ))
                   })()}

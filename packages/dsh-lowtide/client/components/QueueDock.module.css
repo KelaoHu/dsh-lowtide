@@ -107,6 +107,14 @@
   color: var(--dsw-alias-state-error-primary);
 }
 
+/* 放行并执行（approveAll + runNow）的两段式确认态：第一次点击武装变红，
+   3 秒内再次点击才真正放行并执行 —— 防止误触一步放行全部任务。 */
+.approveArmed {
+  color: var(--dsw-alias-state-error-primary) !important;
+  background: var(--dsw-alias-interactive-bg-hover) !important;
+  font-weight: 600;
+}
+
 .drawer {
   display: flex;
   flex-direction: column;

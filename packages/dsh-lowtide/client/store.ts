@@ -81,6 +81,10 @@ export interface HostTask {
   continuesFromSession?: string
   chosenCandidateIndex?: number
   lastError?: string
+  /** Last in-place edit timestamp (edit keeps the task id/status). */
+  editedAt?: string
+  /** Number of in-place edits applied to this task. */
+  editCount?: number
   lastRun?: {
     at: string
     status: string

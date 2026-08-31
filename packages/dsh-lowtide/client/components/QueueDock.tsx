@@ -22,6 +22,7 @@ import { TaskRow } from './TaskRow.tsx'
 import { DroppedRow } from './DroppedRow.tsx'
 import { TaskDetail } from './TaskDetail.tsx'
 import { NewTaskModal } from './NewTaskModal.tsx'
+import { EditTaskModal } from './EditTaskModal.tsx'
 import styles from './QueueDock.module.css'
 
 export type QueueDockProps = PropsRuntime<'conversation.input.dock'> & { t: NsTranslate }
@@ -34,9 +35,13 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
   const reportUnread = useLowtide((s) => s.reportUnread)
   const [modalOpen, setModalOpen] = useState(false)
   const [detailTask, setDetailTask] = useState<HostTask | null>(null)
+  const [editTask, setEditTask] = useState<HostTask | null>(null)
   const [showDone, setShowDone] = useState(false)
   const [showDropped, setShowDropped] = useState(false)
   const [clearArmed, setClearArmed] = useState(false)
+  // 放行并执行 = 全部放行 + 立即开跑，一步到位、不可撤销 —— 两段式确认
+  // （与删除/清空一致）：第一次点击武装（变红），3 秒内再次点击才真正执行。
+  const [approveArmed, setApproveArmed] = useState(false)
   const [onboarded, setOnboarded] = useState(() => {
     try { return localStorage.getItem('dsh-lowtide:onboarded') === '1' } catch { return true }
   })
@@ -66,6 +71,21 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
   function dismissOnboarding(): void {
     try { localStorage.setItem('dsh-lowtide:onboarded', '1') } catch { /* non-fatal */ }
     setOnboarded(true)
+  }
+
+  /** 放行并执行：两段式确认。第一次点击武装（变红 + 文案切换），3 秒内
+   *  再次点击才真正 approveAll + runNow —— 防止误触一步放行全部任务。 */
+  function handleApproveAndRun(): void {
+    if (!approveArmed) {
+      setApproveArmed(true)
+      setTimeout(() => setApproveArmed(false), 3000)
+      return
+    }
+    setApproveArmed(false)
+    void approveAll().then(() => {
+      showToast(t('toast.gateApproved'))
+      void runNow().then(() => showToast(t('toast.runStarted')))
+    })
   }
 
   /** 清空已完成:两段式确认(执行报告历史保留证据,删除任务不丢账)。 */
@@ -131,7 +151,8 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
       {onboardingBanner}
       {dockRow}
       <NewTaskModal open={modalOpen} t={t} defaultAutonomy={host.autonomy as 'l1' | 'l2' | 'l3'} onClose={() => setModalOpen(false)} />
-      {detailTask !== null && <TaskDetail task={detailTask} t={t} onClose={() => setDetailTask(null)} />}
+      {detailTask !== null && <TaskDetail task={detailTask} t={t} onClose={() => setDetailTask(null)} onEdit={setEditTask} />}
+      {editTask !== null && <EditTaskModal task={editTask} t={t} defaultAutonomy={host.autonomy as 'l1' | 'l2' | 'l3'} onClose={() => setEditTask(null)} />}
     </div>
   )
 
@@ -159,7 +180,7 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
                 <div className={styles.groupHeader}>
                   <span className={styles.groupPath}>{group.workspace}</span>
                 </div>
-                {group.tasks.map((task) => <TaskRow key={task.id} task={task} t={t} onOpenDetail={setDetailTask} />)}
+                {group.tasks.map((task) => <TaskRow key={task.id} task={task} t={t} onOpenDetail={setDetailTask} onEdit={setEditTask} />)}
               </div>
             ))}
             {todo.length === 0 && running.length === 0 && done.length === 0 && dropped.length > 0 && (
@@ -209,13 +230,14 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
             <div className={styles.footer}>
               <span className={styles.footerActions}>
                 {pending > 0 && !isL1 ? (
-                  <Button variant="primary" size="sm" onClick={() => {
-                    void approveAll().then(() => {
-                      showToast(t('toast.gateApproved'))
-                      void runNow().then(() => showToast(t('toast.runStarted')))
-                    })
-                  }}>
-                    {t('footer.approveAndRun')}
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className={approveArmed ? styles.approveArmed : undefined}
+                    title={approveArmed ? t('footer.approveAndRunConfirm') : t('footer.approveAndRun')}
+                    onClick={handleApproveAndRun}
+                  >
+                    {approveArmed ? t('footer.approveAndRunConfirmShort') : t('footer.approveAndRun')}
                   </Button>
                 ) : (
                   <Button variant="outline" size="sm" disabled={host.queue.queued === 0 || host.batch.running} onClick={() => { void runNow().then(() => showToast(t('toast.runStarted'))) }}>
@@ -228,7 +250,8 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
         )}
       </div>
       <NewTaskModal open={modalOpen} t={t} defaultAutonomy={host.autonomy as 'l1' | 'l2' | 'l3'} onClose={() => setModalOpen(false)} />
-      {detailTask !== null && <TaskDetail task={detailTask} t={t} onClose={() => setDetailTask(null)} />}
+      {detailTask !== null && <TaskDetail task={detailTask} t={t} onClose={() => setDetailTask(null)} onEdit={setEditTask} />}
+      {editTask !== null && <EditTaskModal task={editTask} t={t} defaultAutonomy={host.autonomy as 'l1' | 'l2' | 'l3'} onClose={() => setEditTask(null)} />}
     </div>
   )
 }
