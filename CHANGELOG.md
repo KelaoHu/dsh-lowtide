@@ -2,6 +2,17 @@
 
 All notable changes to dsh-lowtide are documented in this file.
 
+## [0.2.1] - 2026-09-01
+
+### Fixed
+
+- Marketplace installation failure reported after the v0.2.0 release:
+  installers fetching the plugin through the `releases/latest` download URL
+  could receive a stale cached tarball (0.1.3), which broke pnpm's install
+  and left the profile inconsistent. Install/update via the versioned URL
+  `releases/download/v0.2.1/dsh-lowtide.tgz` (or the marketplace once
+  catalogued). No functional changes versus 0.2.0.
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
