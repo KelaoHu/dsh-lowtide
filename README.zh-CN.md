@@ -265,7 +265,7 @@ pnpm --filter dsh-lowtide exec playwright test   # e2e（需 dsh web 在 3080 �
 
 ## 已知限制与路线图
 
-- 当前是发布候选（v0.1.1），源码方式安装；e2e 需要真实 dsh web 实例。
+- 当前是发布候选（v0.2.1）；e2e 需要真实 dsh web 实例。
 - 默认批量模型 `deepseek-v4-flash`；非官方模型没公开价目，账本标“价格未知”，可在设置页手动补。
 - 单任务最长 240 分钟，超时取消重试一次。
 - 路线图候选：多窗口多批次、任务依赖图、预算自动分摊、报告推送（邮件/Webhook）、价格波动提醒。
@@ -290,7 +290,7 @@ dsh-lowtide/
     ├── core/                  平台无关核心层（lowtide-core）
     │   ├── src/               windows / pricing / model / digest / ledger / scheduler
     │   └── test/              纯函数单测
-    └── dsh/                   插件本体（dsh-lowtide）
+    └── dsh-lowtide/           插件本体（dsh-lowtide）
         ├── src/               宿主半：routes / runner / scheduler / intake / store / state-machine
         ├── client/            浏览器半：components / hooks / i18n / store
         ├── test/              单测 + e2e（Playwright）
