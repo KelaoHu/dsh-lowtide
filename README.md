@@ -267,7 +267,7 @@ Preflight failed: workspace gone, git snapshot moved, a locked file changed, bud
 
 ## Known limitations & roadmap
 
-- Release candidate (v0.1.1), installed from source; e2e needs a live dsh web instance.
+- Release candidate (v0.2.1); e2e needs a live dsh web instance.
 - Default batch model is `deepseek-v4-flash`; non-official models have no public price table — the ledger marks them "price unknown", fillable in settings.
 - Per-task cap is 240 minutes; timeout cancels and retries once.
 - Roadmap candidates: multi-window multi-batch, task dependency graphs, automatic budget split, report push (email/Webhook), price-change alerts.
@@ -292,7 +292,7 @@ dsh-lowtide/
     ├── core/                  Platform-agnostic core (lowtide-core)
     │   ├── src/               windows / pricing / model / digest / ledger / scheduler
     │   └── test/              Pure-function unit tests
-    └── dsh/                   The plugin (dsh-lowtide)
+    └── dsh-lowtide/           The plugin (dsh-lowtide)
         ├── src/               Host half: routes / runner / scheduler / intake / store / state-machine
         ├── client/            Browser half: components / hooks / i18n / store
         ├── test/              Unit tests + e2e (Playwright)
