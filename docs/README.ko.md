@@ -293,7 +293,7 @@ dsh-lowtide/
     ├── core/                  플랫폼 독립 코어 (lowtide-core)
     │   ├── src/               windows / pricing / model / digest / ledger / scheduler
     │   └── test/              순수 함수 단위 테스트
-    └── dsh/                   플러그인 (dsh-lowtide)
+    └── dsh-lowtide/           플러그인 (dsh-lowtide)
         ├── src/               호스트 반쪽: routes / runner / scheduler / intake / store / state-machine
         ├── client/            브라우저 반쪽: components / hooks / i18n / store
         ├── test/              단위 테스트 + e2e (Playwright)

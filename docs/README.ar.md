@@ -295,7 +295,7 @@ dsh-lowtide/
     ├── core/                  النواة المستقلة عن المنصة (lowtide-core)
     │   ├── src/               windows / pricing / model / digest / ledger / scheduler
     │   └── test/              اختبارات وحدة للدوال النقية
-    └── dsh/                   الإضافة (dsh-lowtide)
+    └── dsh-lowtide/           الإضافة (dsh-lowtide)
         ├── src/               نصف المضيف: routes / runner / scheduler / intake / store / state-machine
         ├── client/            نصف المتصفح: components / hooks / i18n / store
         ├── test/              اختبارات وحدة + e2e (Playwright)

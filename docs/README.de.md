@@ -295,7 +295,7 @@ dsh-lowtide/
     ├── core/                  Plattformunabhängiger Kern (lowtide-core)
     │   ├── src/               windows / pricing / model / digest / ledger / scheduler
     │   └── test/              Pure-Function-Unit-Tests
-    └── dsh/                   Das Plugin (dsh-lowtide)
+    └── dsh-lowtide/           Das Plugin (dsh-lowtide)
         ├── src/               Host-Hälfte: routes / runner / scheduler / intake / store / state-machine
         ├── client/            Browser-Hälfte: components / hooks / i18n / store
         ├── test/              Unit-Tests + e2e (Playwright)
