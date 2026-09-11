@@ -7,20 +7,24 @@
  * openai-compatible endpoints, … — is listed with exactly the models its
  * adapter actually serves (configured catalog or adapter defaults).
  */
-import { hasPriceEntry, OFFICIAL_PRICES, type PriceTier } from 'lowtide-core'
+import { hasPriceEntry, priceRouteNotice, resolvePriceModel, OFFICIAL_PRICES, type PriceTier } from 'lowtide-core'
 import type { Context } from '@deepseek-ai/cordis'
 
 export interface AvailableModel {
   id: string
   name: string
-  /** Whether this model has an official/override price entry (deepseek pair). */
+  /** Whether this model has an official/override price entry (aliases count). */
   priceKnown: boolean
+  /** The id that actually gets billed (legacy alias / dated route resolved). */
+  priceModel: string
   /** Adapter-declared input modalities (e.g. ["text", "image"]) — optional. */
   inputModalities?: string[]
   /** Supported reasoning efforts with the adapter's native labels. */
   reasoningEfforts?: ReadonlyArray<{ id: string; name: string; description?: string }>
   /** The model's default reasoning effort id, when the adapter declares one. */
   defaultReasoningEffort?: string
+  /** Billing notice (e.g. a retired model routed to a cheaper one). */
+  notice?: string
 }
 
 export interface AvailableProvider {
@@ -67,13 +71,16 @@ export async function listAvailableModels(
           // No reasoning metadata — leave undefined (UI falls back to the
           // fixed off/low/high/max set).
         }
+        const notice = priceRouteNotice(m.id)
         return {
           id: m.id,
           name: m.name,
           priceKnown: hasPriceEntry(m.id, prices),
+          priceModel: resolvePriceModel(m.id),
           ...(m.inputModalities !== undefined ? { inputModalities: [...m.inputModalities] } : {}),
           ...(reasoningEfforts !== undefined ? { reasoningEfforts } : {}),
           ...(defaultReasoningEffort !== undefined ? { defaultReasoningEffort } : {}),
+          ...(notice !== null ? { notice } : {}),
         }
       }))
     } catch {

@@ -73,7 +73,7 @@ lowtide 是 [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/dsh) 的一�
 
 ![advanced-options](./assets/screenshots/advanced-options.png)
 
-**模型自由选择。** 默认用官方 `deepseek-v4-flash`，但每个任务都能单独指定模型——你 Harness 里接的都在下拉里，按来源分组。接了私有 provider 也能用。非官方模型没有公开价目，账本会标注“价格未知”；想记账就去设置页补个价目。
+**模型自由选择。** 默认用官方 `deepseek-flash`（DeepSeek-V4.1-Flash；旧名 `deepseek-v4-flash` 仍可调用但按 Flash 价计费），但每个任务都能单独指定模型——你 Harness 里接的都在下拉里，按来源分组。接了私有 provider 也能用。非官方模型没有公开价目，账本会标注“价格未知”；想记账就去设置页补个价目。
 
 ![model-picker](./assets/screenshots/model-picker.png)
 
@@ -85,7 +85,7 @@ lowtide 是 [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/dsh) 的一�
 
 ![settings](./assets/screenshots/settings.png)
 
-日常使用中还有三个界面：**价格胶囊**（会话头部，忙闲状态、开跑倒计时、队列数，点它直接改窗口）；**忙时拦截卡**（高峰打字就弹，价差写在明面上，草稿不丢）；**执行报告**（晨报：先说省了多少，异常置顶，候选等你挑，一键复制 Markdown）。
+日常使用中还有三个界面：**价格胶囊**（会话头部，忙闲状态、队列数，点它直接改窗口）；**忙时拦截卡**（高峰打字就弹，价差写在明面上，草稿不丢）；**执行报告**（晨报：先说省了多少，异常置顶，候选等你挑，一键复制 Markdown）。
 
 ## lowtide 的工作区介绍
 
@@ -265,8 +265,8 @@ pnpm --filter dsh-lowtide exec playwright test   # e2e（需 dsh web 在 3080 �
 
 ## 已知限制与路线图
 
-- 当前是发布候选（v0.1.1），源码方式安装；e2e 需要真实 dsh web 实例。
-- 默认批量模型 `deepseek-v4-flash`；非官方模型没公开价目，账本标“价格未知”，可在设置页手动补。
+- 当前是发布候选（v0.2.2），源码方式安装；e2e 需要真实 dsh web 实例。
+- 默认批量模型 `deepseek-flash`；非官方模型没公开价目，账本标“价格未知”，可在设置页手动补。
 - 单任务最长 240 分钟，超时取消重试一次。
 - 路线图候选：多窗口多批次、任务依赖图、预算自动分摊、报告推送（邮件/Webhook）、价格波动提醒。
 
@@ -309,4 +309,4 @@ dsh-lowtide/
 MIT License（见 [LICENSE](./LICENSE)）。
 
 - 构建于 [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/dsh) · Cordis 插件体系
-- [DeepSeek 调价公告（2026-08-13）](https://finance.eastmoney.com/a/202608133840616378.html) · [生效报道（2026-08-17）](https://www.dzwww.com/news/ssnews/202608/t20260817_18025522.htm) · [周末调价公告](https://www.ithome.com/0/993/095.htm)
+- [DeepSeek 模型与价格（2026-09-10 更新）](https://api-docs.deepseek.com/quick_start/pricing) · [更新日志：V4.1-Flash 上线、模型改名与降价（2026-09-10）](https://api-docs.deepseek.com/updates) · [news](https://api-docs.deepseek.com/news)

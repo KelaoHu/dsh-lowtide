@@ -78,7 +78,7 @@ Il secondo passaggio è ciò che distingue lowtide da uno "script completamente 
 
 ![advanced-options](../assets/screenshots/advanced-options.png)
 
-**Scegli qualsiasi modello.** L'esecuzione batch usa di default l'ufficiale `deepseek-v4-flash`, ma ogni attività può scegliere il proprio modello — qualsiasi cosa collegata al tuo Harness appare nel menu a tendina, raggruppata per provider. Anche i provider privati funzionano. I modelli non ufficiali non hanno una tabella prezzi pubblica, quindi il libro mastro dice onestamente "prezzo sconosciuto"; aggiungi un override del prezzo nelle impostazioni se vuoi una contabilità esatta.
+**Scegli qualsiasi modello.** L'esecuzione batch usa di default l'ufficiale `deepseek-flash`, ma ogni attività può scegliere il proprio modello — qualsiasi cosa collegata al tuo Harness appare nel menu a tendina, raggruppata per provider. Anche i provider privati funzionano. I modelli non ufficiali non hanno una tabella prezzi pubblica, quindi il libro mastro dice onestamente "prezzo sconosciuto"; aggiungi un override del prezzo nelle impostazioni se vuoi una contabilità esatta.
 
 ![model-picker](../assets/screenshots/model-picker.png)
 
@@ -90,7 +90,7 @@ Il secondo passaggio è ciò che distingue lowtide da uno "script completamente 
 
 ![settings](../assets/screenshots/settings.png)
 
-Altre tre superfici si nascondono nel flusso quotidiano: la **pillola del prezzo** (intestazione della sessione — occupato/inattivo, conto alla rovescia, dimensione della coda; clic per modificare le finestre), la **scheda di intercettazione in punta** (scrivi in punta, appare; la differenza di prezzo è spiegata; la tua bozza sopravvive) e il **rapporto di esecuzione** (il briefing del mattino: risparmi per primi, anomalie evidenziate, candidati in attesa della tua scelta, copia Markdown con un clic).
+Altre tre superfici si nascondono nel flusso quotidiano: la **pillola del prezzo** (intestazione della sessione — occupato/inattivo, dimensione della coda; clic per modificare le finestre), la **scheda di intercettazione in punta** (scrivi in punta, appare; la differenza di prezzo è spiegata; la tua bozza sopravvive) e il **rapporto di esecuzione** (il briefing del mattino: risparmi per primi, anomalie evidenziate, candidati in attesa della tua scelta, copia Markdown con un clic).
 
 ## Le aree di lavoro di lowtide
 
@@ -270,8 +270,8 @@ Preflight fallito: area di lavoro sparita, snapshot git spostato, un file blocca
 
 ## Limiti noti e roadmap
 
-- Candidato alla release (v0.1.1), installato dal sorgente; e2e richiede un'istanza dsh web viva.
-- Il modello batch predefinito è `deepseek-v4-flash`; i modelli non ufficiali non hanno tabella prezzi pubblica — il libro mastro li segna come "prezzo sconosciuto", compilabile nelle impostazioni.
+- Candidato alla release (v0.2.2), installato dal sorgente; e2e richiede un'istanza dsh web viva.
+- Il modello batch predefinito è `deepseek-flash`; i modelli non ufficiali non hanno tabella prezzi pubblica — il libro mastro li segna come "prezzo sconosciuto", compilabile nelle impostazioni.
 - Limite per attività di 240 minuti; il timeout annulla e riprova una volta.
 - Candidati della roadmap: più finestre e lotti, grafi di dipendenza tra attività, ripartizione automatica del budget, invio dei rapporti (email/Webhook), avvisi di variazione prezzi.
 
@@ -312,7 +312,7 @@ Che questo plugin di Harness sia del popolo, dal popolo e per il popolo. Che la 
 Licenza MIT (vedi [LICENSE](../LICENSE)).
 
 - Costruito su [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/dsh) · l'ecosistema di plugin Cordis
-- [Annuncio prezzi di DeepSeek (2026-08-13)](https://finance.eastmoney.com/a/202608133840616378.html) · [copertura della data di efficacia (2026-08-17)](https://www.dzwww.com/news/ssnews/202608/t20260817_18025522.htm) · [avviso prezzi del fine settimana](https://www.ithome.com/0/993/095.htm)
+- [Annuncio prezzi di DeepSeek (2026-09-10)](https://api-docs.deepseek.com/quick_start/pricing) · [copertura della data di efficacia (2026-09-10)](https://api-docs.deepseek.com/updates) · [news](https://api-docs.deepseek.com/news)
 
 ---
 

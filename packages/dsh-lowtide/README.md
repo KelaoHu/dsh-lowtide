@@ -33,7 +33,9 @@ lowtide 是 DeepSeek Harness (dsh) 的一个插件。它解决的问题其实很
 
 ## 峰谷定价与时间语义
 
-**DeepSeek 的峰谷定价是什么**：DeepSeek 自 **2026-08-17** 起对 API 实行峰谷分时定价（[调价公告 2026-08-13](https://finance.eastmoney.com/a/202608133840616378.html)，[生效报道](https://www.dzwww.com/news/ssnews/202608/t20260817_18025522.htm)），自 **2026-08-23** 起**周末全天低谷**（[周末调价公告](https://www.ithome.com/0/993/095.htm)）：**工作日** 09:00–12:00、14:00–18:00（北京时间）为高峰时段，其余时间为非高峰时段；**周末（周六、周日）全天为非高峰**。非高峰价格约为高峰的一半；部分模型涨幅最高达 1100%。
+**DeepSeek 的峰谷定价是什么**：DeepSeek 对 API 实行峰谷分时定价（[模型与价格](https://api-docs.deepseek.com/quick_start/pricing)，[更新日志](https://api-docs.deepseek.com/updates)）：**工作日** 09:00–12:00、14:00–18:00（北京时间）为高峰时段，其余时间为非高峰时段；**周末（周六、周日）全天为非高峰**。非高峰价格恰为高峰价的一半。
+
+**2026-09-10 的官方变化（本版已对齐）**：DeepSeek-V4.1-Flash 上线并**下调 Flash 价**，模型名改为 `deepseek-flash`；旧名 `deepseek-v4-flash`、`deepseek-v4-flash-vision-exp` 仍可调用，但请求被路由到 V4.1-Flash 并**按 Flash 价计费**。**V4 Pro 于北京时间 2026-09-14 12:00 起下线**，此后的请求同样路由到 V4.1-Flash 并按 Flash 价计费。插件把旧名登记为**别名**、把 V4 Pro 的下线登记为**按日期生效的计费路由**，因此旧任务、旧模型目录都能继续正确计费，界面上会给出提示。
 
 **术语映射**：官方公告里的「高峰 / 非高峰」就是本插件的「忙时 / 闲时」。
 
@@ -51,7 +53,7 @@ lowtide 是 DeepSeek Harness (dsh) 的一个插件。它解决的问题其实很
 
 | 界面 | 槽位 | 说明 |
 |---|---|---|
-| ① 价格状态胶囊 | `conversation.session.header.utilities` | 状态点 + 闲时/忙时/执行中 · 待办时显示开跑倒计时 · 队列数（价格明细移入悬停提示）；**点击即可编辑闲时/忙时时段**（本地时间 · 多段 · 实时色带预览） |
+| ① 价格状态胶囊 | `conversation.session.header.utilities` | 状态点 + 闲时/忙时/执行中（本地时钟推导，推送中断也不冻结）· 队列数（价格明细移入悬停提示）；**点击即可编辑闲时/忙时时段**（本地时间 · 多段 · 实时色带预览） |
 | ② 忙时拦截卡 | `conversation.composer`（chain 槽） | 忙时输入时接管 composer：现在就跑 vs 投递闲时队列，草稿保留 |
 | ③ 队列面板 | `conversation.input.dock` | 分组队列 · 行内裁定（✓ 批准 / ⏸ 顺延 / ✕ 放弃）· 已放弃可恢复 · 立即开跑 · 执行中独立分组 |
 | ④ 批次确认卡 | `shell.overlay` | 批次窗口前 T-30min 出现，未放行不执行（fail-safe） |
@@ -119,7 +121,7 @@ pnpm.cmd dev   # = dsh web --patch ./cordis.dev.yml
 - **并发调度**：同一批内按工作区分组——同工作区任务串行（git 索引锁安全），不同工作区并行，全局并发上限 `batch.maxConcurrency`（默认 3，设置页可调 1–8）。
 - 每任务独立会话（失败隔离）；`agents.create` + `followup` + `whenIdle`；超时/重试一次；迭代（智能迭代）/采样按轮次执行并累加成本。
 - **智能迭代**（iterative）：按任务类型自动选择审查维度（代码/文档/测试/重构/通用），每轮输出结构化问题清单并逐条修复；无高危问题或修复无实质变化即提前结束；审查历史进入执行报告的「审查意见」。费用约为生成 1 次 + 每轮（审查+修复）2 次调用。
-- **模型**：默认批量模型 `deepseek-official` / `deepseek-v4-flash`；新建工单「高级设置」里可从**本机 Harness 已接入的任意模型**中选择（含 llm-pi-ai / 自定义 OpenAI 兼容 provider），投递时携带 `model` + `modelProvider`，执行时以该 provider+model 真实运行。选「跟随全局」则使用界面当前选中的模型。非 deepseek 模型无官方价目 → 记账显示「价格未知」（可在设置页 `prices[model]` 手动补价目）。老任务（有 model 无 modelProvider）执行时自动按模型目录推断 provider。
+- **模型**：默认批量模型跟随界面当前选择（全新安装的官方默认是 `deepseek-official` / `deepseek-flash`，即 DeepSeek-V4.1-Flash；旧名 `deepseek-v4-flash` 按别名计费）；新建工单「高级设置」里可从**本机 Harness 已接入的任意模型**中选择（含 llm-pi-ai / 自定义 OpenAI 兼容 provider），投递时携带 `model` + `modelProvider`，执行时以该 provider+model 真实运行。选「跟随全局」则使用界面当前选中的模型。非 deepseek 模型无官方价目 → 记账显示「价格未知」（可在设置页 `prices[model]` 手动补价目）。老任务（有 model 无 modelProvider）执行时自动按模型目录推断 provider。
 - **预检**：文件 sha256/size 快照、git HEAD、工作区存在性、窗口适配、预算——任一不符 → stale/deferred，绝不盲跑。
 - **顺延恢复**：窗口开始时 preflight-deferred 任务自动重新入队（`deferCount` ≥3 标失败）；用户手动顺延的回到待裁定。
 - 每个窗口只跑一批（跨零点安全）；空队列不产生执行报告。

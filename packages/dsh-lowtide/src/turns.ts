@@ -14,6 +14,7 @@ import type {} from '@deepseek-ai/dsh-agent-default-model'
 import type {} from '@deepseek-ai/dsh-permission-presets'
 import type {} from '@deepseek-ai/dsh-agent-presets'
 import {
+  DEEPSEEK_REASONING_EFFORTS,
   type ReasoningEffort,
   type Task,
   type UsageLike,
@@ -229,17 +230,25 @@ export async function executeTurns(
   const baseSelection = resolveBatchModel(liveSelection, undefined, task.model, providerOverride)
   let effectiveReasoning = reasoning
   if (reasoning !== undefined) {
+    let supported: string[] = []
     try {
       const info = await ctx.llm.resolveModelInfo(baseSelection.provider, baseSelection.model)
       const efforts = info?.reasoning?.efforts
-      const supported = Array.isArray(efforts) ? efforts.map((e) => (e as { id: string }).id) : []
-      if (supported.length > 0 && !supported.includes(reasoning)) {
+      supported = Array.isArray(efforts) ? efforts.map((e) => (e as { id: string }).id) : []
+    } catch {
+      // Model info unresolvable — fall through to the provider fence below.
+    }
+    if (supported.length > 0) {
+      if (!supported.includes(reasoning)) {
         console.warn(`[lowtide] ${baseSelection.provider}/${baseSelection.model} does not support reasoning "${reasoning}" — falling back to the model default`)
         effectiveReasoning = undefined
       }
-    } catch {
-      // Model info unresolvable — keep the requested effort; the harness will
-      // surface a precise error if it is genuinely unsupported.
+    } else if (baseSelection.provider === 'deepseek-official' && !DEEPSEEK_REASONING_EFFORTS.includes(reasoning)) {
+      // The DeepSeek adapter THROWS `UNSUPPORTED_REASONING_EFFORT` for anything
+      // outside off/low/high/max (verified in dsh-llm-deepseek 0.1.5-rc.1), so
+      // an unresolvable catalog must not let a stale value through.
+      console.warn(`[lowtide] deepseek-official rejects reasoning "${reasoning}" on the wire — falling back to the model default`)
+      effectiveReasoning = undefined
     }
   }
   const selection = resolveBatchModel(liveSelection, effectiveReasoning, task.model, providerOverride)

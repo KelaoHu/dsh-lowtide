@@ -84,7 +84,7 @@
 
 .detailResumeWarn {
   padding: 6px 8px;
-  color: var(--dsw-alias-state-warning-primary);
+  color: var(--dsw-alias-state-warn-primary);
   font: var(--dsw-font-xxs-12);
   background: var(--dsw-alias-interactive-bg-hover);
   border-radius: 6px;

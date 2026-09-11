@@ -78,7 +78,7 @@ L'étape deux est ce qui distingue lowtide d'un « script entièrement automatis
 
 ![advanced-options](../assets/screenshots/advanced-options.png)
 
-**Choisissez n'importe quel modèle.** L'exécution par lots utilise par défaut le `deepseek-v4-flash` officiel, mais chaque tâche peut choisir son propre modèle — tout ce qui est connecté à votre Harness apparaît dans la liste déroulante, groupé par fournisseur. Les fournisseurs privés fonctionnent aussi. Les modèles non officiels n'ont pas de barème public, donc le grand livre dit honnêtement « prix inconnu » ; ajoutez une dérogation de prix dans les paramètres si vous voulez une comptabilité exacte.
+**Choisissez n'importe quel modèle.** L'exécution par lots utilise par défaut le `deepseek-flash` officiel, mais chaque tâche peut choisir son propre modèle — tout ce qui est connecté à votre Harness apparaît dans la liste déroulante, groupé par fournisseur. Les fournisseurs privés fonctionnent aussi. Les modèles non officiels n'ont pas de barème public, donc le grand livre dit honnêtement « prix inconnu » ; ajoutez une dérogation de prix dans les paramètres si vous voulez une comptabilité exacte.
 
 ![model-picker](../assets/screenshots/model-picker.png)
 
@@ -90,7 +90,7 @@ L'étape deux est ce qui distingue lowtide d'un « script entièrement automatis
 
 ![settings](../assets/screenshots/settings.png)
 
-Trois autres surfaces se cachent dans le flux quotidien : la **pilule de prix** (en-tête de session — occupé/inactif, compte à rebours, taille de la file ; cliquez pour éditer les fenêtres), la **carte d'interception en heures pleines** (tapez en heure pleine, elle apparaît ; la différence de prix est expliquée ; votre brouillon survit) et le **rapport d'exécution** (le briefing du matin : économies d'abord, anomalies épinglées, candidats attendant votre choix, copie Markdown en un clic).
+Trois autres surfaces se cachent dans le flux quotidien : la **pilule de prix** (en-tête de session — occupé/inactif, taille de la file ; cliquez pour éditer les fenêtres), la **carte d'interception en heures pleines** (tapez en heure pleine, elle apparaît ; la différence de prix est expliquée ; votre brouillon survit) et le **rapport d'exécution** (le briefing du matin : économies d'abord, anomalies épinglées, candidats attendant votre choix, copie Markdown en un clic).
 
 ## À propos des espaces de travail lowtide
 
@@ -270,8 +270,8 @@ Preflight échoué : espace de travail disparu, instantané git déplacé, fichi
 
 ## Limitations connues et feuille de route
 
-- Candidat à la version (v0.1.1), installé depuis les sources ; e2e nécessite une instance dsh web vivante.
-- Le modèle de lot par défaut est `deepseek-v4-flash` ; les modèles non officiels n'ont pas de barème public — le grand livre les marque « prix inconnu », remplissable dans les paramètres.
+- Candidat à la version (v0.2.2), installé depuis les sources ; e2e nécessite une instance dsh web vivante.
+- Le modèle de lot par défaut est `deepseek-flash` ; les modèles non officiels n'ont pas de barème public — le grand livre les marque « prix inconnu », remplissable dans les paramètres.
 - Plafond par tâche de 240 minutes ; le délai dépassé annule et réessaie une fois.
 - Candidats de la feuille de route : fenêtres et lots multiples, graphes de dépendance de tâches, répartition automatique du budget, envoi de rapports (email/Webhook), alertes de changement de prix.
 
@@ -312,7 +312,7 @@ Que ce plugin Harness soit du peuple, par le peuple et pour le peuple. Que la sa
 Licence MIT (voir [LICENSE](../LICENSE)).
 
 - Construit sur [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/dsh) · l'écosystème de plugins Cordis
-- [Annonce tarifaire de DeepSeek (2026-08-13)](https://finance.eastmoney.com/a/202608133840616378.html) · [couverture de la date d'effet (2026-08-17)](https://www.dzwww.com/news/ssnews/202608/t20260817_18025522.htm) · [avis sur les tarifs du week-end](https://www.ithome.com/0/993/095.htm)
+- [Annonce tarifaire de DeepSeek (2026-09-10)](https://api-docs.deepseek.com/quick_start/pricing) · [couverture de la date d'effet (2026-09-10)](https://api-docs.deepseek.com/updates) · [news](https://api-docs.deepseek.com/news)
 
 ---
 

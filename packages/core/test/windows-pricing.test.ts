@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { addDaysInTz, dayStartInTz, levelAt, localParts, minutesUntil, nextBatchAt, nextOffPeakStart, systemTimeZone, windowsInTz } from '../src/windows.ts'
-import { OFFICIAL_PEAK_WINDOWS, cost, costAtRow, hasPriceEntry, OFFICIAL_PRICES, estimate, rowForLevel, tierFor } from '../src/pricing.ts'
+import { addDaysInTz, dayStartInTz, levelAt, localParts, minutesUntil, nextBatchAt, nextLevelChangeAt, nextOffPeakStart, systemTimeZone, windowsInTz } from '../src/windows.ts'
+import { OFFICIAL_EFFECTIVE_FROM, OFFICIAL_PEAK_WINDOWS, cost, costAtRow, hasPriceEntry, OFFICIAL_PRICES, estimate, priceRouteNotice, resolvePriceModel, rowForLevel, tierFor } from '../src/pricing.ts'
 import { defaultConfig } from '../src/model.ts'
 
 const PEAK = OFFICIAL_PEAK_WINDOWS
@@ -119,35 +119,35 @@ describe('windows.nextOffPeakStart / nextBatchAt / minutesUntil', () => {
 })
 
 describe('pricing.cost', () => {
-  test('off-peak flash, 0% cached: 2M in + 60K out = ¥3.27 (PLAN §0.5 example)', () => {
+  test('off-peak flash, 0% cached: 2M in + 60K out = ¥2.24 (2026-09-10 flash table)', () => {
     const usage = { input: 2_000_000, cacheRead: 0, output: 60_000 }
     const c = cost(usage, 'deepseek-v4-flash', beijingTime(19, 0), PEAK, OFFICIAL_PRICES)
-    expect(c).toBeCloseTo(3.27, 2)
+    expect(c).toBeCloseTo(2.24, 2)
   })
 
-  test('peak flash, 0% cached: same usage = ¥6.54', () => {
+  test('peak flash, 0% cached: same usage = ¥4.48', () => {
     const usage = { input: 2_000_000, cacheRead: 0, output: 60_000 }
     const c = cost(usage, 'deepseek-v4-flash', beijingTime(10, 0), PEAK, OFFICIAL_PRICES)
-    expect(c).toBeCloseTo(6.54, 2)
+    expect(c).toBeCloseTo(4.48, 2)
   })
 
-  test('50% cache hit (PLAN §0.5 caveat): off = ¥1.82, peak = ¥3.64', () => {
+  test('50% cache hit: off = ¥1.26, peak = ¥2.52 (cache-hit row is 1/50 of miss)', () => {
     const usage = { input: 1_000_000, cacheRead: 1_000_000, output: 60_000 }
-    expect(cost(usage, 'deepseek-v4-flash', beijingTime(19, 0), PEAK, OFFICIAL_PRICES)).toBeCloseTo(1.82, 2)
-    expect(cost(usage, 'deepseek-v4-flash', beijingTime(10, 0), PEAK, OFFICIAL_PRICES)).toBeCloseTo(3.64, 2)
+    expect(cost(usage, 'deepseek-v4-flash', beijingTime(19, 0), PEAK, OFFICIAL_PRICES)).toBeCloseTo(1.26, 2)
+    expect(cost(usage, 'deepseek-v4-flash', beijingTime(10, 0), PEAK, OFFICIAL_PRICES)).toBeCloseTo(2.52, 2)
   })
 
   test('reasoning tokens are NOT double-counted (output already includes them)', () => {
     const usage = { input: 253, cacheRead: 384, output: 1649, reasoning: 1392 }
     const c = cost(usage, 'deepseek-v4-flash', beijingTime(2, 0), PEAK, OFFICIAL_PRICES)
-    // (253×1.5 + 384×0.05 + 1649×4.5)/1e6
-    expect(c).toBeCloseTo((253 * 1.5 + 384 * 0.05 + 1649 * 4.5) / 1_000_000, 6)
+    // (253×1 + 384×0.02 + 1649×4)/1e6
+    expect(c).toBeCloseTo((253 * 1 + 384 * 0.02 + 1649 * 4) / 1_000_000, 6)
   })
 
   test('custom window multiplier scales the off base', () => {
     const windows = [{ id: 'c', level: 'custom' as const, start: '00:00', end: '23:59', tz: 'Asia/Shanghai', multiplier: 3 }]
     const usage = { input: 1_000_000, output: 0, cacheRead: 0 }
-    expect(cost(usage, 'deepseek-v4-flash', beijingTime(5), windows, OFFICIAL_PRICES)).toBeCloseTo(4.5, 2)
+    expect(cost(usage, 'deepseek-v4-flash', beijingTime(5), windows, OFFICIAL_PRICES)).toBeCloseTo(3, 2)
   })
 
   test('unknown model falls back to the flash tier instead of throwing (UI stays alive)', () => {
@@ -304,22 +304,93 @@ describe('config.defaultConfig follows the official peak/valley windows', () => 
   })
 })
 
-describe('pricing official table covers all three deepseek models', () => {
-  test('flash, pro and flash-vision-exp all have entries', () => {
-    expect(Object.keys(OFFICIAL_PRICES).sort()).toEqual([
-      'deepseek-v4-flash',
-      'deepseek-v4-flash-vision-exp',
-      'deepseek-v4-pro',
-    ])
+describe('pricing official table after the 2026-09-10 V4.1-Flash release', () => {
+  test('two canonical entries: deepseek-flash and deepseek-v4-pro', () => {
+    expect(Object.keys(OFFICIAL_PRICES).sort()).toEqual(['deepseek-flash', 'deepseek-v4-pro'])
   })
 
-  test('the vision model is priced identically to V4-Flash', () => {
-    expect(OFFICIAL_PRICES['deepseek-v4-flash-vision-exp']).toEqual(OFFICIAL_PRICES['deepseek-v4-flash'])
+  test('flash is the new price cut: 2/0.04/8 peak, 1/0.02/4 off', () => {
+    expect(OFFICIAL_PRICES['deepseek-flash']).toEqual({
+      peak: { input: 2, inputCached: 0.04, output: 8 },
+      off: { input: 1, inputCached: 0.02, output: 4 },
+    })
+    expect(OFFICIAL_EFFECTIVE_FROM).toBe('2026-09-10')
+  })
+
+  test('legacy ids alias to the flash entry and stay priced', () => {
+    expect(resolvePriceModel('deepseek-v4-flash')).toBe('deepseek-flash')
+    expect(resolvePriceModel('deepseek-v4-flash-vision-exp')).toBe('deepseek-flash')
+    expect(tierFor('deepseek-v4-flash')).toEqual(OFFICIAL_PRICES['deepseek-flash'])
+    expect(tierFor('deepseek-v4-flash-vision-exp')).toEqual(OFFICIAL_PRICES['deepseek-flash'])
+    expect(hasPriceEntry('deepseek-v4-flash')).toBe(true)
     expect(hasPriceEntry('deepseek-v4-flash-vision-exp')).toBe(true)
+    expect(hasPriceEntry('deepseek-flash')).toBe(true)
+  })
+
+  test('a user override on a legacy id still wins over the official alias row', () => {
+    const overrides = {
+      'deepseek-v4-flash': {
+        peak: { input: 5, inputCached: 1, output: 20 },
+        off: { input: 2.5, inputCached: 0.5, output: 10 },
+      },
+    }
+    expect(tierFor('deepseek-v4-flash', overrides).peak.input).toBe(5)
+    expect(hasPriceEntry('deepseek-v4-flash', overrides)).toBe(true)
+  })
+
+  test('V4 Pro bills as Flash only from Beijing 2026-09-14 12:00 (04:00Z)', () => {
+    const before = new Date('2026-09-14T03:59:59.000Z')
+    const after = new Date('2026-09-14T04:00:00.000Z')
+    expect(resolvePriceModel('deepseek-v4-pro', before)).toBe('deepseek-v4-pro')
+    expect(tierFor('deepseek-v4-pro', OFFICIAL_PRICES, before).peak.input).toBe(9)
+    expect(resolvePriceModel('deepseek-v4-pro', after)).toBe('deepseek-flash')
+    expect(tierFor('deepseek-v4-pro', OFFICIAL_PRICES, after).peak.input).toBe(2)
+    expect(priceRouteNotice('deepseek-v4-pro', before)).toBeNull()
+    expect(priceRouteNotice('deepseek-v4-pro', after)).toContain('2026-09-14')
   })
 
   test('a non-official model has no price entry', () => {
     expect(hasPriceEntry('mimo-v2.5-pro')).toBe(false)
     expect(hasPriceEntry('gpt-4o')).toBe(false)
+  })
+})
+
+describe('windows.nextLevelChangeAt (client tier clock source)', () => {
+  test('inside the morning peak the next change is 12:00 Beijing', () => {
+    const next = nextLevelChangeAt(beijingTime(10, 0), PEAK)
+    expect(next?.toISOString()).toBe(new Date('2026-08-17T04:00:00.000Z').toISOString()) // Mon 12:00 +08
+  })
+
+  test('in the 12:00-14:00 gap the next change is 14:00', () => {
+    const next = nextLevelChangeAt(beijingTime(13, 0), PEAK)
+    expect(next?.toISOString()).toBe(new Date('2026-08-17T06:00:00.000Z').toISOString()) // 14:00 +08
+  })
+
+  test('after 18:00 on a weekday the next change is the next morning peak', () => {
+    const next = nextLevelChangeAt(beijingTime(19, 0), PEAK)
+    // Monday 19:00 → Tuesday 09:00 Beijing
+    expect(next?.toISOString()).toBe(new Date('2026-08-18T01:00:00.000Z').toISOString())
+  })
+
+  test('on a Friday evening the next change skips the weekend to Monday 09:00', () => {
+    const friday = new Date('2026-09-11T19:00:00+08:00')
+    const next = nextLevelChangeAt(friday, PEAK)
+    expect(next?.toISOString()).toBe(new Date('2026-09-14T01:00:00.000Z').toISOString()) // Mon 09:00 +08
+  })
+
+  test('a midnight-crossing window boundary is found in the next day', () => {
+    const night = [{ id: 'night', level: 'peak' as const, start: '22:00', end: '02:00', tz: 'Asia/Shanghai' }]
+    const next = nextLevelChangeAt(new Date('2026-09-10T23:00:00+08:00'), night)
+    expect(next?.toISOString()).toBe(new Date('2026-09-11T02:00:00+08:00').toISOString())
+  })
+
+  test('no windows means no boundary', () => {
+    expect(nextLevelChangeAt(new Date(), [])).toBeNull()
+  })
+
+  test('the returned instant is always in the future', () => {
+    const at = new Date('2026-09-10T04:00:00.000Z') // exactly 12:00 Beijing
+    const next = nextLevelChangeAt(at, PEAK)
+    expect(next?.getTime()).toBeGreaterThan(at.getTime())
   })
 })

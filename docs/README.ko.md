@@ -76,7 +76,7 @@ lowtide를 설치하면 하루가 이렇게 흘러갑니다: 낮에 떠오르는
 
 ![advanced-options](../assets/screenshots/advanced-options.png)
 
-**모델은 자유롭게.** 배치 실행은 기본적으로 공식 `deepseek-v4-flash`를 사용하지만, 각 작업은 자신만의 모델을 선택할 수 있습니다 — Harness에 연결된 모든 모델이 공급자별로 그룹화되어 드롭다운에 나타납니다. 프라이빗 공급자도 작동합니다. 비공식 모델은 공개 요금표가 없으므로 장부는 정직하게 "가격 미상"이라고 표시합니다. 정확한 회계를 원하면 설정에서 가격 오버라이드를 추가하세요.
+**모델은 자유롭게.** 배치 실행은 기본적으로 공식 `deepseek-flash`를 사용하지만, 각 작업은 자신만의 모델을 선택할 수 있습니다 — Harness에 연결된 모든 모델이 공급자별로 그룹화되어 드롭다운에 나타납니다. 프라이빗 공급자도 작동합니다. 비공식 모델은 공개 요금표가 없으므로 장부는 정직하게 "가격 미상"이라고 표시합니다. 정확한 회계를 원하면 설정에서 가격 오버라이드를 추가하세요.
 
 ![model-picker](../assets/screenshots/model-picker.png)
 
@@ -88,7 +88,7 @@ lowtide를 설치하면 하루가 이렇게 흘러갑니다: 낮에 떠오르는
 
 ![settings](../assets/screenshots/settings.png)
 
-일상 흐름 속에 세 가지 화면이 더 숨어 있습니다: **가격 알약**(세션 헤더 — 바쁨/한가함, 카운트다운, 큐 크기; 클릭하면 창 편집), **피크 시간 인터셉트 카드**(피크 시간에 입력하면 나타나고, 가격 차이가 설명되며, 초안은 보존됩니다), **실행 보고서**(아침 브리핑: 절약 금액 우선, 이상 항목 표시, 선택 대기 중인 후보, 원클릭 Markdown 복사).
+일상 흐름 속에 세 가지 화면이 더 숨어 있습니다: **가격 알약**(세션 헤더 — 바쁨/한가함, 큐 크기; 클릭하면 창 편집), **피크 시간 인터셉트 카드**(피크 시간에 입력하면 나타나고, 가격 차이가 설명되며, 초안은 보존됩니다), **실행 보고서**(아침 브리핑: 절약 금액 우선, 이상 항목 표시, 선택 대기 중인 후보, 원클릭 Markdown 복사).
 
 ## lowtide 작업공간에 대해
 
@@ -268,8 +268,8 @@ pnpm --filter dsh-lowtide exec playwright test   # e2e (:3080에서 dsh web 실�
 
 ## 알려진 제한 사항과 로드맵
 
-- 릴리스 후보(v0.1.1), 소스에서 설치됨; e2e는 실행 중인 dsh web 인스턴스가 필요합니다.
-- 기본 배치 모델은 `deepseek-v4-flash`입니다. 비공식 모델은 공개 가격표가 없어 장부에 "가격 미상"으로 표시되며, 설정에서 채울 수 있습니다.
+- 릴리스 후보(v0.2.2), 소스에서 설치됨; e2e는 실행 중인 dsh web 인스턴스가 필요합니다.
+- 기본 배치 모델은 `deepseek-flash`입니다. 비공식 모델은 공개 가격표가 없어 장부에 "가격 미상"으로 표시되며, 설정에서 채울 수 있습니다.
 - 작업당 상한은 240분이며, 시간 초과 시 취소 후 한 번 재시도합니다.
 - 로드맵 후보: 다중 창 다중 배치, 작업 의존성 그래프, 예산 자동 분배, 보고서 푸시(이메일/Webhook), 가격 변동 알림.
 
@@ -310,7 +310,7 @@ dsh-lowtide/
 MIT 라이선스 ([LICENSE](../LICENSE) 참조).
 
 - [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/dsh) 기반 · Cordis 플러그인 생태계
-- [DeepSeek 가격 조정 공지 (2026-08-13)](https://finance.eastmoney.com/a/202608133840616378.html) · [시행일 보도 (2026-08-17)](https://www.dzwww.com/news/ssnews/202608/t20260817_18025522.htm) · [주말 요금 공지](https://www.ithome.com/0/993/095.htm)
+- [DeepSeek 가격 조정 공지 (2026-09-10)](https://api-docs.deepseek.com/quick_start/pricing) · [시행일 보도 (2026-09-10)](https://api-docs.deepseek.com/updates) · [news](https://api-docs.deepseek.com/news)
 
 ---
 

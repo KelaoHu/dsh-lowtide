@@ -2,6 +2,87 @@
 
 All notable changes to dsh-lowtide are documented in this file.
 
+## [0.2.2] - 2026-09-11
+
+### Fixed
+
+- **Price pill no longer freezes (the reported bug).** The session-header
+  闲时/忙时 indicator was a pure mirror of the host's pushed snapshot, and the
+  client disabled its 4s polling the moment the EventSource reported `open` —
+  with no freshness check. One silently stalled stream (host restart leaving a
+  half-open socket, a hidden/frozen Electron window, system sleep, a swapped or
+  capped SSE client) froze the indicator indefinitely while the clock moved on,
+  and `connected === false` was invisible while a snapshot existed.
+  - The displayed tier is now derived **locally** from the host's windows and
+    this machine's clock (`client/lib/tierClock.ts`, using the very same
+    `levelAt` from `lowtide-core`), recomputed on every frame, on a 30s
+    heartbeat, and exactly at the next window boundary.
+  - A **watchdog** demotes a silent-but-open stream after 45s, re-enables the
+    polling fallback, and reconnects with 5s→60s backoff; the host now also
+    sends an SSE `retry: 5000` hint.
+  - Staleness is **visible**: the pill's dot switches to the warning state and
+    the tooltip reports how old the pushed data is.
+  - The same clock now drives the intercept card's busy/idle decision, and the
+    24h price band's "now" marker ticks on its own (it used to be computed once
+    per render).
+  - Host side: a throwing `statePayload()` can no longer reject the
+    fire-and-forget broadcast (which silently killed the heartbeat); SSE
+    clients are also dropped on socket `error`, not just `close`.
+- **Broken theme token fixed** (found by the `css-vars` e2e check): the task
+  detail's resume warning used `--dsw-alias-state-warning-primary`, a token the
+  host theme does not define (the real one is `--dsw-alias-state-warn-primary`),
+  so the warning silently rendered with an inherited colour.
+- **e2e specs made self-sufficient** (they assumed a restored conversation):
+  an empty "new session" hides the session header, so `g4-window-editor`
+  (which clicked a workspace node) and `g1-screens` (which waited for the
+  removed `"/M"` price text) could never reach the pill. Both now use the new
+  shared `test/e2e/pill.ts` helper (`pillOf()` + `openConversation()`, which
+  opens conversations until the pill actually mounts); `g6-pill-clock` uses it
+  too.
+
+### Changed
+
+- **DeepSeek official table refreshed to the 2026-09-10 V4.1-Flash release**
+  (sourced from api-docs.deepseek.com): the flash row is now 2 / 0.04 / 8 (peak)
+  and 1 / 0.02 / 4 (off-peak) ¥ per 1M tokens; V4 Pro keeps 9 / 0.3 / 27 and
+  4.5 / 0.15 / 13.5. Peak hours are unchanged (Beijing weekdays 09:00–12:00 and
+  14:00–18:00; weekends entirely off-peak).
+- **Model naming**: `deepseek-flash` (DeepSeek-V4.1-Flash) is the canonical
+  flash id. The retired ids `deepseek-v4-flash` and
+  `deepseek-v4-flash-vision-exp` are kept as **aliases** (DeepSeek routes their
+  requests to V4.1-Flash and bills Flash prices), so existing tasks and Harness
+  catalogs stay priced instead of falling back to "价格未知".
+- **Dated billing route**: from Beijing 2026-09-14 12:00 (04:00Z) every
+  `deepseek-v4-pro` request is billed as Flash — the ledger follows the official
+  routing, and `/ds-lowtide/models` exposes the notice in the UI.
+- Hard-coded model ids are gone from the client: the new-task modal follows the
+  live selection, the intercept card follows the live model, and the price-table
+  editor lists the union of the official table, the live Harness catalog and any
+  user override — a future DeepSeek rename needs no code change.
+- `settings.officialBody` (zh/en) rewritten for the 2026-09-10 scheme; a new
+  drift notice appears when the saved windows no longer match the official
+  hours, next to the existing one-click "adopt official hours" action.
+- Task reasoning efforts are fenced for `deepseek-official`: anything outside
+  the adapter's wire set (off/low/high/max) is dropped instead of being sent —
+  `dsh-llm-deepseek` throws `UNSUPPORTED_REASONING_EFFORT` for it.
+- The `permission.presets` row patch now documents its binding to the
+  `dsh-base` version (a row patch replaces the whole config).
+- Versions aligned at 0.2.2 across the root, `lowtide-core` and the plugin;
+  release tarballs (`packages/*/*.tgz`) are gitignored.
+- `dev` script moved to `@deepseek-ai/dsh@0.1.5-rc.1`; devDependencies stay on
+  the verified `^0.1.0-rc.7` line (satisfied by both the 0.1.1-rc.2 and the
+  0.1.5-rc.1 runtimes).
+
+### Tests
+
+- Core: 54 cases (new: legacy-id aliases, the V4 Pro routing boundary at
+  2026-09-14 03:59:59Z / 04:00:00Z, `nextLevelChangeAt` boundaries, weekends and
+  midnight-crossing windows).
+- Plugin: 178 cases (new `test/tier-clock.test.ts` pins the fix — a 17:59:30
+  clock flips to 闲时 just after 18:00 with **zero** server frames, the 30s
+  heartbeat catches a late boundary, config edits re-derive immediately, and
+  `stop()` cancels both timers).
+
 ## [0.2.1] - 2026-09-01
 
 ### Fixed

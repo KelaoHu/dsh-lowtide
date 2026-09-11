@@ -75,7 +75,7 @@ Step two is where lowtide differs from a "fully automated script": **every task 
 
 ![advanced-options](./assets/screenshots/advanced-options.png)
 
-**Pick any model.** Batch runs default to the official `deepseek-v4-flash`, but each task can pick its own model — anything connected to your Harness is in the dropdown, grouped by provider. Private providers work too. Non-official models have no public price table, so the ledger honestly says "price unknown"; add a price override in settings if you want the bookkeeping exact.
+**Pick any model.** Batch runs default to the official `deepseek-flash` (DeepSeek-V4.1-Flash; the retired `deepseek-v4-flash` name still routes there at Flash prices), but each task can pick its own model — anything connected to your Harness is in the dropdown, grouped by provider. Private providers work too. Non-official models have no public price table, so the ledger honestly says "price unknown"; add a price override in settings if you want the bookkeeping exact.
 
 ![model-picker](./assets/screenshots/model-picker.png)
 
@@ -87,7 +87,7 @@ Step two is where lowtide differs from a "fully automated script": **every task 
 
 ![settings](./assets/screenshots/settings.png)
 
-Three more pieces of UI appear in daily use: the **price pill** (session header — busy/idle, countdown, queue size; click it to edit windows), the **peak-hours intercept card** (type at peak, it appears; the price difference is spelled out; your draft survives), and the **execution report** (the morning briefing: savings first, anomalies pinned, candidates awaiting your pick, one-click Markdown copy).
+Three more pieces of UI appear in daily use: the **price pill** (session header — busy/idle, queue size; click it to edit windows), the **peak-hours intercept card** (type at peak, it appears; the price difference is spelled out; your draft survives), and the **execution report** (the morning briefing: savings first, anomalies pinned, candidates awaiting your pick, one-click Markdown copy).
 
 ## About lowtide workspaces
 
@@ -267,8 +267,8 @@ Preflight failed: workspace gone, git snapshot moved, a locked file changed, bud
 
 ## Known limitations & roadmap
 
-- Release candidate (v0.1.1), installed from source; e2e needs a live dsh web instance.
-- Default batch model is `deepseek-v4-flash`; non-official models have no public price table — the ledger marks them "price unknown", fillable in settings.
+- Release candidate (v0.2.2), installed from source; e2e needs a live dsh web instance.
+- Default batch model is `deepseek-flash`; non-official models have no public price table — the ledger marks them "price unknown", fillable in settings.
 - Per-task cap is 240 minutes; timeout cancels and retries once.
 - Roadmap candidates: multi-window multi-batch, task dependency graphs, automatic budget split, report push (email/Webhook), price-change alerts.
 
@@ -309,4 +309,4 @@ May this Harness plugin be of the people, by the people, for the people. May the
 MIT License (see [LICENSE](./LICENSE)).
 
 - Built on [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/dsh) · the Cordis plugin ecosystem
-- [DeepSeek pricing announcement (2026-08-13)](https://finance.eastmoney.com/a/202608133840616378.html) · [effective-date coverage (2026-08-17)](https://www.dzwww.com/news/ssnews/202608/t20260817_18025522.htm) · [weekend pricing notice](https://www.ithome.com/0/993/095.htm)
+- [DeepSeek models & pricing (updated 2026-09-10)](https://api-docs.deepseek.com/quick_start/pricing) · [changelog: V4.1-Flash, rename and price cut (2026-09-10)](https://api-docs.deepseek.com/updates) · [news](https://api-docs.deepseek.com/news)

@@ -36,12 +36,18 @@ export interface InterceptMatched {
  * Pure chain routing: priced window ∧ not dismissed ∧ session present ∧
  * draft non-empty. The draft condition keeps the native bar (and the queue
  * dock) visible until the user actually starts typing (PLAN §6.2).
+ *
+ * v0.2.2: the tier comes from the local clock (`store.tier`), so a stalled
+ * push stream can neither hide nor freeze the intercept card at a boundary.
  */
 export function selectIntercept(owner: ComposerChainProps): InterceptMatched | null {
-  const host = lowtideStore.getSnapshot().host
+  const snapshot = lowtideStore.getSnapshot()
+  const host = snapshot.host
   if (host === null) return null
-  const priced = host.price.tier === 'peak'
-    || (host.price.tier === 'custom' && host.price.multiplier > 1)
+  const tier = snapshot.tierAt > 0 ? snapshot.tier : null
+  const level = tier?.level ?? host.price.tier
+  const multiplier = tier?.multiplier ?? host.price.multiplier
+  const priced = level === 'peak' || (level === 'custom' && multiplier > 1)
   if (!priced) return null
   if (host.dismissedPeakToday) return null
   if (readInterceptDraft().trim() === '') return null
@@ -56,16 +62,20 @@ export function InterceptCard(props: InterceptCardProps): React.JSX.Element {
   const { t } = props
   const draft = props.useInput((input) => input.draft)
   const host = useLowtide((s) => s.host)
+  const tier = useLowtide((s) => s.tier)
+  const tierAt = useLowtide((s) => s.tierAt)
   const [workspace, setWorkspace] = useState(() => lastWorkspace())
   const [submitting, setSubmitting] = useState(false)
   // Price estimate: peak = now (current UI model), off = batch model (user's
   // choice or default). Fetched debounced as the draft changes.
   const [estimateResult, setEstimateResult] = useState<{ peak: number; off: number } | null>(null)
 
-  const peakWindow = host?.level !== null && host?.level !== undefined
-    ? `${host.level.window.start}–${host.level.window.end}`
-    : ''
-  const customMultiplier = host?.price.tier === 'custom' ? host.price.multiplier : null
+  // Clock-accurate tier first, host snapshot as the pre-first-frame fallback.
+  const shownLevel = tierAt > 0 ? tier.level : host?.price.tier ?? 'off'
+  const shownMultiplier = tierAt > 0 ? tier.multiplier : host?.price.multiplier ?? 1
+  const shownWindow = tierAt > 0 ? tier.window : host?.level?.window ?? null
+  const peakWindow = shownWindow !== null ? `${shownWindow.start}–${shownWindow.end}` : ''
+  const customMultiplier = shownLevel === 'custom' ? shownMultiplier : null
   const tierText = customMultiplier !== null && customMultiplier > 1
     ? t('intercept.tierCustom', { multiplier: customMultiplier })
     : t('intercept.tierPeak')
@@ -78,7 +88,8 @@ export function InterceptCard(props: InterceptCardProps): React.JSX.Element {
     priority: 1,
     files: '',
     reasoning: 'follow',
-    model: host?.price.model ?? 'deepseek-v4-flash',
+    // Follow the live selection (no hard-coded legacy id — see NewTaskModal).
+    model: host?.price.model ?? '',
     modelProvider: '',
     strategyHint: '',
     // Intercept submissions always follow the global autonomy level.

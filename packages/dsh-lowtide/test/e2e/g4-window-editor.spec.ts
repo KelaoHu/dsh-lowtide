@@ -5,6 +5,7 @@
  */
 import { test, expect } from '@playwright/test'
 import type { Page } from '@playwright/test'
+import { openConversation, pillOf } from './pill.ts'
 
 async function shot(page: Page, name: string): Promise<void> {
   await page.screenshot({ path: `test/screenshots/g4-${name}-light.png` })
@@ -27,16 +28,11 @@ test('g4: pill window editor — open, edit, save, round-trip', async ({ page, r
   await page.waitForTimeout(4000)
   expect(crashed, `renderer health: ${crashed ?? 'ok'}`).toBeNull()
 
-  // The pill is the session header status button (text = 闲时/忙时/Off-peak/
-  // Peak/Running). It only exists inside an OPEN session.
-  const pill = page.getByRole('button', { name: /Off-peak|闲时|Peak|忙时|Running|执行中/ }).first()
-  for (let i = 0; i < 15; i++) {
-    if (await pill.count()) break
-    if (i === 4 && (await page.getByRole('treeitem').count()) > 0) {
-      await page.getByRole('treeitem').nth(1).click({ timeout: 3000 }).catch(() => {})
-    }
-    await page.waitForTimeout(2000)
-  }
+  // The pill is the session header status control (text = 闲时/忙时/Off-peak/
+  // Peak/Running). It only exists inside an OPEN conversation: an empty "new
+  // session" hides the header — the shared helper opens one deterministically.
+  await openConversation(page)
+  const pill = pillOf(page)
   expect(await pill.count(), 'pill mounted').toBeGreaterThan(0)
 
   // Click the pill → editor modal opens.

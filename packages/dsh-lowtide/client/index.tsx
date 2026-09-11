@@ -22,7 +22,7 @@ import { QueueDock } from './components/QueueDock.tsx'
 import { MorningReport } from './components/MorningReport.tsx'
 import { ConfirmGate } from './components/ConfirmGate.tsx'
 import { LowtideSettings } from './settings.tsx'
-import { clearToast, lowtideStore, startPolling, useLowtide, wireLocale } from './store.ts'
+import { clearToast, lowtideStore, resetUiState, startPolling, useLowtide, wireLocale } from './store.ts'
 
 /** Required services before this client module materializes. */
 export const inject = ['slots', 'locale']
@@ -91,17 +91,6 @@ export function apply(ctx: ClientContext): void {
 
   ctx.effect(() => () => {
     stop()
-    lowtideStore.set({
-      host: null,
-      connected: false,
-      error: null,
-      queueOpen: false,
-      reportOpen: false,
-      reportHistoryOpen: false,
-      reportUnread: false,
-      toast: null,
-      lastReportId: null,
-      activeLocale: 'zh',
-    })
+    resetUiState()
   })
 }

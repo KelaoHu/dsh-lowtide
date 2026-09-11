@@ -10,6 +10,12 @@
   display: inline-flex;
 }
 
+/* v0.2.2: the pushed data stopped arriving (poll fallback carries the UI).
+   The tier itself is still clock-accurate — the pill just says so. */
+.pillStale .label {
+  color: var(--dsw-alias-label-tertiary);
+}
+
 .label {
   color: var(--dsw-alias-label-secondary);
   font: var(--dsw-font-xxs-12);

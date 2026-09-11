@@ -17,11 +17,15 @@ import {
   nextOffPeakStart,
   OFFICIAL_PEAK_WINDOWS,
   parseWindowRange,
+  priceRouteNotice,
+  resolvePriceModel,
   rowForLevel,
   systemTimeZone,
   tierFor,
   windowsInTz,
   type PriceRow,
+  type WindowCfg,
+  type WindowLocal,
 } from 'lowtide-core'
 import { intake } from './intake.ts'
 import { reportDateLabel } from './runner.ts'
@@ -46,9 +50,31 @@ const sseClients = new Set<ServerResponse>()
 /** Hard cap on concurrent SSE connections (pentest P7). */
 const MAX_SSE_CLIENTS = 16
 
+/** One warning per failure burst — a throwing payload must not spam the log. */
+let broadcastWarnedAt = 0
+
+/**
+ * Push the aggregate state to every SSE client.
+ *
+ * `statePayload` reads live services (`ctx.agentDefaultModel`, the scheduler,
+ * the ledger); a throw there used to reject the fire-and-forget promise and
+ * kill the whole heartbeat silently — the browser then kept a half-open stream
+ * and froze the pill. Failures are now contained: the frame is skipped, the
+ * next heartbeat (15s) retries, and the reason is logged once per minute.
+ */
 async function broadcastState(ctx: Context, routes: Routes): Promise<void> {
   if (sseClients.size === 0) return
-  const payload = JSON.stringify(await statePayload(ctx, routes))
+  let payload: string
+  try {
+    payload = JSON.stringify(await statePayload(ctx, routes))
+  } catch (error) {
+    const now = Date.now()
+    if (now - broadcastWarnedAt > 60_000) {
+      broadcastWarnedAt = now
+      ctx.logger('lowtide').warn('state broadcast failed: %s', error instanceof Error ? error.message : String(error))
+    }
+    return
+  }
   const frame = `event: state\ndata: ${payload}\n\n`
   // Snapshot the set before iterating — a failed write may delete the client,
   // and modifying a Set while iterating it, though safe per ES6, is clearer
@@ -165,10 +191,16 @@ export function registerRoutes(ctx: Context, routes: Routes): void {
             'cache-control': 'no-cache',
             connection: 'keep-alive',
           })
+          // `retry:` tells EventSource how fast to reconnect after a drop; the
+          // client keeps its own watchdog on top (45s without a frame → poll).
+          res.write('retry: 5000\n\n')
           res.write(': connected\n\n')
           sseClients.add(res)
           req.on('close', () => { sseClients.delete(res) })
           res.on('close', () => { sseClients.delete(res) })
+          // A dead socket must leave the broadcast set, not linger in it.
+          req.on('error', () => { sseClients.delete(res) })
+          res.on('error', () => { sseClients.delete(res) })
           void broadcastState(ctx, routes)
           return
         }
@@ -553,6 +585,25 @@ function validateConfigUpdate(patch: ConfigUpdate): string | null {
   return null
 }
 
+/** Normalized weekday list for schedule comparison (undefined/empty = every day). */
+function dayKey(days: number[] | undefined): string {
+  return days === undefined || days.length === 0 ? 'all' : [...days].sort((a, b) => a - b).join(',')
+}
+
+/**
+ * Whether the configured peak windows still match the official schedule
+ * (official hours converted into this machine's clock). A mismatch means
+ * DeepSeek changed its peak hours since the user last adopted them, and the
+ * UI offers a one-click re-adopt instead of silently billing on stale hours.
+ */
+export function officialScheduleDrift(configured: WindowCfg[], officialLocal: WindowLocal[]): boolean {
+  if (configured.length === 0) return false // empty = official fallback, never drifts
+  const peaks = configured.filter((w) => w.level === 'peak' && (w.multiplier === undefined || w.multiplier === 1))
+  if (peaks.length !== officialLocal.length) return true
+  return officialLocal.some((o) => !peaks.some((p) =>
+    p.start === o.start && p.end === o.end && dayKey(p.days) === dayKey(o.days)))
+}
+
 async function statePayload(ctx: Context, routes: Routes): Promise<Record<string, unknown>> {
   const { store, scheduler } = routes
   const now = new Date()
@@ -561,8 +612,11 @@ async function statePayload(ctx: Context, routes: Routes): Promise<Record<string
 
   const match = levelAt(now, windows)
   const modelId = ctx.agentDefaultModel.currentSelection().model
+  // The model that actually gets billed right now (legacy aliases and dated
+  // routes such as the V4 Pro → V4.1-Flash retirement are resolved here).
+  const priceModel = resolvePriceModel(modelId, now)
   // Price overrides ride on top of the official table (tierFor falls back).
-  const tier = tierFor(modelId, store.config.prices)
+  const tier = tierFor(modelId, store.config.prices, now)
   // Surface the REAL level ('peak' | 'off' | 'custom') + multiplier so the UI
   // shows the same price the ledger charges (custom = off × multiplier).
   const activeLevel = match?.level ?? 'off'
@@ -571,6 +625,10 @@ async function statePayload(ctx: Context, routes: Routes): Promise<Record<string
 
   const nextBatch = nextBatchAt(now, { window: config.batch.window, tz: config.batch.tz, gateLeadMin: config.batch.gateLeadMin })
   const nextOff = nextOffPeakStart(now, windows)
+
+  // 时区人性化:官方忙时段换算到本机时钟(设置页展示 + 一键采用 + 漂移检测)。
+  const systemTz = systemTimeZone()
+  const officialInLocal = windowsInTz(OFFICIAL_PEAK_WINDOWS, systemTz, now)
 
   const activeTasks = store.tasks.filter((t) => t.status !== 'dropped' && t.status !== 'cancelled')
   const ledger = store.ledgerToday(now)
@@ -588,16 +646,26 @@ async function statePayload(ctx: Context, routes: Routes): Promise<Record<string
   return {
     ok: true,
     time: now.toISOString(),
+    /** Snapshot instant — the client tier clock compares it with its own clock. */
+    serverNow: now.getTime(),
     autonomy: config.autonomy,
     level: match === null ? null : { level: match.level, multiplier: match.multiplier, window: { id: match.window.id, label: match.window.label, start: match.window.start, end: match.window.end } },
+    /**
+     * Raw effective windows (own `tz`/`days` preserved). The client derives the
+     * displayed 闲时/忙时 locally from these with the same `levelAt` function, so
+     * a stalled push stream can never freeze the pill.
+     */
+    windows,
     price: {
       model: modelId,
+      /** Billing id after alias/route resolution (e.g. V4 Pro → deepseek-flash). */
+      priceModel,
       input: row.input,
       inputCached: row.inputCached,
       output: row.output,
       tier: activeLevel,
       multiplier,
-      priceKnown: hasPriceEntry(modelId, store.config.prices),
+      priceKnown: hasPriceEntry(modelId, store.config.prices, now),
       peakInput: tier.peak.input,
       peakOutput: tier.peak.output,
       offInput: tier.off.input,
@@ -607,8 +675,12 @@ async function statePayload(ctx: Context, routes: Routes): Promise<Record<string
     countdownMs: minutesUntil(now, nextBatch) * 60_000,
     nextOffPeakAt: nextOff === null ? null : nextOff.getTime(),
     // 时区人性化:系统时区 + 官方忙时段换算到本地(供设置页展示/一键采用)。
-    systemTz: systemTimeZone(),
-    officialInLocal: windowsInTz(OFFICIAL_PEAK_WINDOWS, systemTimeZone(), now),
+    systemTz,
+    officialInLocal,
+    /** True when the saved windows no longer match the official schedule. */
+    officialDrift: officialScheduleDrift(config.windows, officialInLocal),
+    /** Model-routing notice (e.g. V4 Pro retired → billed as Flash). */
+    priceNotice: priceRouteNotice(modelId, now),
     batch: {
       window: config.batch.window,
       paused: config.batch.paused,

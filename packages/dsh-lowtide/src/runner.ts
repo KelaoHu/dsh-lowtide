@@ -70,18 +70,21 @@ function priceTableOf(store: LowtideStore): PriceTable | undefined {
 
 function costOf(usage: UsageLike, modelId: string, windows: WindowCfg[], prices: PriceTable | undefined): number {
   // Unknown-price models (non-deepseek providers) are NOT costed — the UI
-  // shows "价格未知" instead of a made-up flash-tier number.
-  if (!hasPriceEntry(modelId, prices)) return 0
-  return prices === undefined ? cost(usage, modelId, new Date(), windows) : cost(usage, modelId, new Date(), windows, prices)
+  // shows "价格未知" instead of a made-up flash-tier number. Aliases and dated
+  // routes (legacy flash ids, retired V4 Pro) resolve inside the core helpers.
+  const now = new Date()
+  if (!hasPriceEntry(modelId, prices, now)) return 0
+  return prices === undefined ? cost(usage, modelId, now, windows) : cost(usage, modelId, now, windows, prices)
 }
 
 /** Hypothetical peak-hour cost of a usage — the "what you saved" baseline.
- *  Only models with a real price entry (official table incl.
- *  deepseek-v4-flash-vision-exp, or a user price override) get a baseline;
- *  anything else yields 0 so no fake savings are ever reported. */
+ *  Only models with a real price entry (the official table — including legacy
+ *  aliases such as deepseek-v4-flash-vision-exp — or a user price override)
+ *  get a baseline; anything else yields 0 so no fake savings are reported. */
 export function peakCostOf(usage: UsageLike, modelId: string, prices: PriceTable | undefined): number {
-  if (!hasPriceEntry(modelId, prices)) return 0
-  return costAtRow(usage, tierFor(modelId, prices).peak)
+  const now = new Date()
+  if (!hasPriceEntry(modelId, prices, now)) return 0
+  return costAtRow(usage, tierFor(modelId, prices, now).peak)
 }
 
 interface StrategyOutcome {

@@ -27,8 +27,10 @@ export function NewTaskModal({ open, t, defaultAutonomy, onClose }: {
     priority: 3,
     files: '',
     reasoning: 'follow',
-    model: 'deepseek-v4-flash',
-    modelProvider: 'deepseek-official',
+    // v0.2.2: no hard-coded model — follow the live Harness selection (a
+    // pinned legacy id would survive DeepSeek renames and mis-price tasks).
+    model: '',
+    modelProvider: '',
     strategyHint: '',
     autonomy: defaultAutonomy,
     sessionMode: 'new',

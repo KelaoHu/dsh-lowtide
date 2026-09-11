@@ -8,11 +8,16 @@
 import { useEffect, useState } from 'react'
 import { Button, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
-import { getConfig, getStateMeta, updateConfig } from './api.ts'
-import { refreshNow, showToast, switchLocale, useLowtide } from './store.ts'
+import { OFFICIAL_PRICES, PRICE_ALIASES } from 'lowtide-core'
+import { getConfig, getModels, getStateMeta, updateConfig } from './api.ts'
+import { refreshNow, setTierWindows, showToast, switchLocale, useLowtide } from './store.ts'
 import { type NsTranslate } from './i18n.ts'
 import { PriceBand } from './components/PriceBand.tsx'
+import { useWallClock } from './components/atoms.tsx'
 import styles from './settings.module.css'
+
+/** Editable price-table rows: canonical official ids plus legacy aliases. */
+const OFFICIAL_PRICE_MODELS: string[] = [...new Set([...Object.keys(OFFICIAL_PRICES), ...Object.keys(PRICE_ALIASES)])]
 
 interface WindowDraft {
   id: string
@@ -141,13 +146,29 @@ export function LowtideSettings({ t }: SettingsSectionOwnerProps & { t: NsTransl
   const [pricesExpanded, setPricesExpanded] = useState(false)
   const activeLocale = useLowtide((s) => s.activeLocale)
   // 时区元信息(系统时区 + 官方忙时本地换算):用于官方定价说明与一键采用。
-  const [meta, setMeta] = useState<{ systemTz: string; officialInLocal: OfficialLocal[] } | null>(null)
+  const [meta, setMeta] = useState<{ systemTz: string; officialInLocal: OfficialLocal[]; officialDrift: boolean } | null>(null)
+  // Live Harness catalog ids — the price-table editor lists whatever the
+  // machine actually serves (a DeepSeek rename needs no code change).
+  const [hostModels, setHostModels] = useState<string[] | null>(null)
+  // Wall-clock tick (30s): the 24h band's "now" marker must advance on its own.
+  const nowMs = useWallClock(30_000)
+  const nowIndex = Math.floor(((new Date(nowMs).getHours() * 60) + new Date(nowMs).getMinutes()) / 30) % 48
 
   useEffect(() => {
     let alive = true
+    void getModels().then((res) => {
+      if (!alive || !res.ok || res.providers === undefined) return
+      setHostModels(res.providers.flatMap((p) => p.models.map((m) => m.id)))
+    }).catch(() => { /* 模型目录非关键 */ })
     void getStateMeta().then((res) => {
       if (!alive) return
-      if (res.ok) setMeta({ systemTz: res.systemTz ?? '', officialInLocal: res.officialInLocal ?? [] })
+      if (res.ok) {
+        setMeta({
+          systemTz: res.systemTz ?? '',
+          officialInLocal: res.officialInLocal ?? [],
+          officialDrift: res.officialDrift === true,
+        })
+      }
     }).catch(() => { /* 元信息非关键,失败仅影响说明卡片 */ })
     void getConfig().then((res) => {
       if (!alive) return
@@ -190,6 +211,23 @@ export function LowtideSettings({ t }: SettingsSectionOwnerProps & { t: NsTransl
         windows: Array.isArray(c.windows) ? c.windows.map(windowToDraft) : [],
         prices,
       })
+      // Feed the tier clock the saved windows so the pill stays clock-accurate
+      // even when no host frame has arrived yet (empty = keep the host's set).
+      if (Array.isArray(c.windows) && c.windows.length > 0) {
+        setTierWindows(
+          (c.windows as Array<Record<string, unknown>>).map((w) => ({
+            id: String(w.id ?? ''),
+            ...(typeof w.label === 'string' && w.label !== '' ? { label: w.label } : {}),
+            level: (w.level === 'peak' || w.level === 'custom' ? w.level : 'off') as 'peak' | 'off' | 'custom',
+            start: String(w.start ?? '00:00'),
+            end: String(w.end ?? '00:00'),
+            ...(Array.isArray(w.days) && w.days.length > 0 ? { days: w.days as number[] } : {}),
+            ...(typeof w.tz === 'string' && w.tz !== '' ? { tz: w.tz } : {}),
+            ...(typeof w.multiplier === 'number' ? { multiplier: w.multiplier } : {}),
+          })),
+          typeof batch.tz === 'string' && batch.tz !== '' ? batch.tz : null,
+        )
+      }
     }).catch((reason) => {
       if (alive) setError(t('settings.configError', { error: reason instanceof Error ? reason.message : String(reason) }))
     })
@@ -284,8 +322,15 @@ export function LowtideSettings({ t }: SettingsSectionOwnerProps & { t: NsTransl
     showToast(t('toast.restoredDefaults'))
   }
 
-  const PRICE_MODELS = ['deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp']
-  const priceModels = [...new Set([...PRICE_MODELS, ...Object.keys(draft.prices)])]
+  // Editable price rows: the official table (canonical ids + legacy aliases)
+  // unioned with whatever the live Harness serves and any user override — so a
+  // DeepSeek rename (e.g. deepseek-flash, 2026-09-10) shows up automatically
+  // instead of needing a code change.
+  const priceModels = [...new Set([
+    ...OFFICIAL_PRICE_MODELS,
+    ...(hostModels ?? []),
+    ...Object.keys(draft.prices),
+  ])].sort()
 
   const save = async (): Promise<void> => {
     setSaving(true)
@@ -485,6 +530,9 @@ export function LowtideSettings({ t }: SettingsSectionOwnerProps & { t: NsTransl
               <span className={styles.officialBody}>
                 {t('settings.officialWeekend')}
               </span>
+              {meta.officialDrift && (
+                <span className={styles.officialBody}>{t('settings.officialDrift')}</span>
+              )}
             </>
           )}
           <div className={styles.officialActions}>
@@ -551,7 +599,7 @@ export function LowtideSettings({ t }: SettingsSectionOwnerProps & { t: NsTransl
           segments={draft.windows.length > 0
             ? draft.windows.filter((w) => w.id.trim() !== '' || w.label.trim() !== '')
             : (meta?.officialInLocal ?? []).map((w) => ({ level: 'peak' as const, start: w.start, end: w.end }))}
-          nowIndex={Math.floor((new Date().getHours() * 60 + new Date().getMinutes()) / 30) % 48}
+          nowIndex={nowIndex}
           t={t}
         />
         <div className={styles.legend}>

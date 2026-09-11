@@ -14,9 +14,10 @@
 import { useEffect, useState } from 'react'
 import { Button, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import { getConfig, getStateMeta, updateConfig } from '../api.ts'
-import { refreshNow, showToast } from '../store.ts'
+import { refreshNow, refreshTier, setTierWindows, showToast } from '../store.ts'
 import { type NsTranslate } from '../i18n.ts'
 import { PriceBand } from './PriceBand.tsx'
+import { useWallClock } from './atoms.tsx'
 import styles from './WindowEditorModal.module.css'
 
 interface SegmentDraft {
@@ -56,6 +57,8 @@ export function WindowEditorModal({ open, onClose, t }: {
   const [systemTz, setSystemTz] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The band's "now" marker follows the wall clock (30s tick), not the render.
+  const nowMs = useWallClock(30_000)
 
   useEffect(() => {
     if (!open) return
@@ -95,6 +98,20 @@ export function WindowEditorModal({ open, onClose, t }: {
       }))
       const hasAdvanced = windows.some((w) => !isBase(w))
       setSegments(base.length > 0 || hasAdvanced ? base : [])
+      // Keep the local tier clock in sync with what was just read (empty
+      // config = official fallback, which the host sends on its own).
+      if (base.length > 0) {
+        setTierWindows(
+          base.map((s, i) => ({
+            id: `editor-${i}`,
+            level: s.level,
+            start: s.start,
+            end: s.end,
+            ...(s.days !== undefined ? { days: s.days } : {}),
+          })),
+          typeof c.batch?.tz === 'string' && c.batch.tz !== '' ? c.batch.tz : null,
+        )
+      }
     }).catch((reason) => {
       if (alive) setError(t('settings.configError', { error: reason instanceof Error ? reason.message : String(reason) }))
     })
@@ -153,6 +170,19 @@ export function WindowEditorModal({ open, onClose, t }: {
       const res = await updateConfig({ windows: [...editedBase, ...advanced] })
       setSaving(false)
       if (res.ok) {
+        // Local clock first: the new windows apply to the displayed tier even
+        // if the push stream is down (then refreshNow() reconciles the rest).
+        setTierWindows(
+          editedBase.map((w) => ({
+            id: w.id,
+            level: w.level as 'peak' | 'off' | 'custom',
+            start: w.start,
+            end: w.end,
+            ...('days' in w && w.days !== undefined ? { days: w.days as number[] } : {}),
+          })),
+          typeof c.batch?.tz === 'string' && c.batch.tz !== '' ? c.batch.tz : null,
+        )
+        refreshTier()
         showToast(t('toast.windowsSaved'))
         refreshNow()
         onClose()
@@ -165,7 +195,7 @@ export function WindowEditorModal({ open, onClose, t }: {
     }
   }
 
-  const nowIndex = Math.floor((new Date().getHours() * 60 + new Date().getMinutes()) / 30) % 48
+  const nowIndex = Math.floor(((new Date(nowMs).getHours() * 60) + new Date(nowMs).getMinutes()) / 30) % 48
 
   return (
     <Modal

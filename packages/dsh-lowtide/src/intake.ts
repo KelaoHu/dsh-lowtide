@@ -9,7 +9,9 @@ import { isAbsolute, resolve, sep } from 'node:path'
 import { z } from 'zod'
 import {
   DEFAULT_ESTIMATE_MINUTES,
+  DEFAULT_MODEL_ID,
   estimate as coreEstimate,
+  FALLBACK_TIER,
   hasPriceEntry,
   MAX_ROUNDS,
   OFFICIAL_PRICES,
@@ -105,9 +107,10 @@ export async function intake(
   // scaled by the strategy's cost factor (PLAN v2 §1: 迭代/采样 = N× 单次;
   // 复核 = 2× 单次:执行 + 独立审查)。
   const sizes = files.map((f) => ({ size: f.size ?? 0 }))
-  // Task-level model wins, then the route's default, then flash — the
-  // estimate must match the model that actually runs (pro costs more).
-  const modelId = data.model ?? options?.modelId ?? 'deepseek-v4-flash'
+  // Task-level model wins, then the route's default (the live Harness
+  // selection), then the current official flash id — the estimate must match
+  // the model that actually runs (pro costs more).
+  const modelId = data.model ?? options?.modelId ?? DEFAULT_MODEL_ID
   const prices = mergePrices(options?.prices)
   const priced = coreEstimate(data.prompt, sizes, modelId, prices)
   // Unknown-price models (non-deepseek providers) get NO estimate — the UI
@@ -163,7 +166,7 @@ function mergePrices(overrides: Record<string, unknown> | undefined): Record<str
   const merged: Record<string, PriceTier> = { ...OFFICIAL_PRICES }
   for (const [model, tier] of Object.entries(overrides)) {
     const t = tier as { peak?: Partial<PriceRow>; off?: Partial<PriceRow> }
-    const base = merged[model] ?? OFFICIAL_PRICES['deepseek-v4-flash']
+    const base = merged[model] ?? FALLBACK_TIER
     merged[model] = {
       peak: { ...base.peak, ...(t.peak ?? {}) },
       off: { ...base.off, ...(t.off ?? {}) },

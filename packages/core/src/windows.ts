@@ -185,6 +185,41 @@ export function nextOffPeakStart(when: Date, windows: WindowCfg[], defaultTz = s
   return best
 }
 
+/**
+ * The next moment the active level may change after `when`: the earliest
+ * future boundary among every window's start and end (calendar-based, per
+ * window tz, weekday-aware).
+ *
+ * The client tier clock uses this to flip a displayed 闲时/忙时 exactly at the
+ * boundary — even when no host frame ever arrives (a stalled push stream must
+ * never freeze the indicator). Scanning mirrors `nextOffPeakStart`: day steps
+ * go through `addDaysInTz` so DST/midnight-crossing windows stay correct.
+ *
+ * Returns null when no boundary is reachable within 8 days (e.g. no windows).
+ */
+export function nextLevelChangeAt(when: Date, windows: WindowCfg[], defaultTz = systemTimeZone()): Date | null {
+  let best: Date | null = null
+  for (let day = 0; day < 8; day++) {
+    for (const window of windows) {
+      const tz = window.tz ?? defaultTz
+      const probe = addDaysInTz(when, tz, day)
+      const { minutes, weekday } = localParts(probe, tz)
+      if (!matchesDays(window.days, weekday)) continue
+      const start = minutesOf(window.start)
+      const end = minutesOf(window.end)
+      // start === end is a full-day window: its only meaningful boundary is the
+      // start (the level cannot change inside it).
+      const boundaries = end === start ? [start] : [start, end]
+      for (const boundary of boundaries) {
+        const candidate = new Date(probe.getTime() + (boundary - minutes) * 60_000)
+        if (candidate.getTime() > when.getTime() && (best === null || candidate.getTime() < best.getTime())) best = candidate
+      }
+    }
+    if (best !== null) break
+  }
+  return best
+}
+
 /** Next batch start from a "HH:MM-HH:MM" window (local time in batch tz). */
 export function nextBatchAt(now: Date, batch: BatchCfg, defaultTz = systemTimeZone()): Date {
   const { start } = parseWindowRange(batch.window)

@@ -2,10 +2,25 @@
  * Atomic presentational pieces (PLAN §3.6/§3.7): money with tabular nums,
  * live countdown, status dot. Only §4 tokens.
  */
-import { useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { StateDotState } from '@deepseek-ai/dsh-client-ui-primitives'
 import styles from './atoms.module.css'
+
+/**
+ * Wall-clock tick for "now" markers (v0.2.2): re-renders every `periodMs`
+ * (default 30s) and on mount. The 24h band's marker used to be computed once
+ * per render with no timer, so it never moved on its own — the same class of
+ * staleness the tier clock fixes for the pill.
+ */
+export function useWallClock(periodMs = 30_000): number {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), periodMs)
+    return () => clearInterval(timer)
+  }, [periodMs])
+  return now
+}
 
 /** ¥3.82 two-decimals; ¥123 without decimals at ≥¥100; <¥0.01 for dust (PLAN §3.6). */
 export function Money({ yuan, className }: { yuan: number; className?: string }): React.JSX.Element {

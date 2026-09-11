@@ -73,7 +73,7 @@ lowtide 是 [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/dsh) 的一�
 
 ![advanced-options](./assets/screenshots/advanced-options.png)
 
-**模型自由選擇。** 默認用官方 `deepseek-v4-flash`，但每個任務都能單獨指定模型——你 Harness 裡接的都在下拉裡，按來源分組。接了私有 provider 也能用。非官方模型沒有公開價目，帳本會標註「價格未知」；想記帳就去設定頁補個價目。
+**模型自由選擇。** 默認用官方 `deepseek-flash`（DeepSeek-V4.1-Flash；舊名 `deepseek-v4-flash` 仍可調用但按 Flash 價計費），但每個任務都能單獨指定模型——你 Harness 裡接的都在下拉裡，按來源分組。接了私有 provider 也能用。非官方模型沒有公開價目，帳本會標註「價格未知」；想記帳就去設定頁補個價目。
 
 ![model-picker](./assets/screenshots/model-picker.png)
 
@@ -85,7 +85,7 @@ lowtide 是 [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/dsh) 的一�
 
 ![settings](./assets/screenshots/settings.png)
 
-日常使用中還有三個介面：**價格膠囊**（會話頂端，忙閒狀態、開跑倒數計時、隊列數，點它直接改視窗）；**忙時攔截卡**（高峰打字就彈，價差寫在明面上，草稿不丟）；**執行報告**（晨報：先說省了多少，異常置頂，候選等你挑，一鍵複製 Markdown）。
+日常使用中還有三個介面：**價格膠囊**（會話頂端，忙閒狀態、隊列數，點它直接改視窗）；**忙時攔截卡**（高峰打字就彈，價差寫在明面上，草稿不丟）；**執行報告**（晨報：先說省了多少，異常置頂，候選等你挑，一鍵複製 Markdown）。
 
 ## lowtide 的工作區介紹
 
@@ -265,8 +265,8 @@ pnpm --filter dsh-lowtide exec playwright test   # e2e（需 dsh web 在 3080 �
 
 ## 已知限制與路線圖
 
-- 當前是發布候選（v0.1.1），原始碼方式安裝；e2e 需要真實 dsh web 實例。
-- 默認批量模型 `deepseek-v4-flash`；非官方模型沒公開價目，帳本標「價格未知」，可在設定頁手動補。
+- 當前是發布候選（v0.2.2），原始碼方式安裝；e2e 需要真實 dsh web 實例。
+- 默認批量模型 `deepseek-flash`；非官方模型沒公開價目，帳本標「價格未知」，可在設定頁手動補。
 - 單任務最長 240 分鐘，超時取消重試一次。
 - 路線圖候選：多視窗多批次、任務依賴圖、預算自動分攤、報告推送（郵件/Webhook）、價格波動提醒。
 
@@ -309,4 +309,4 @@ dsh-lowtide/
 MIT License（見 [LICENSE](./LICENSE)）。
 
 - 構建於 [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/dsh) · Cordis 插件體系
-- [DeepSeek 調價公告（2026-08-13）](https://finance.eastmoney.com/a/202608133840616378.html) · [生效報導（2026-08-17）](https://www.dzwww.com/news/ssnews/202608/t20260817_18025522.htm) · [週末調價公告](https://www.ithome.com/0/993/095.htm)
+- [DeepSeek 模型與價格（2026-09-10 更新）](https://api-docs.deepseek.com/quick_start/pricing) · [更新日誌：V4.1-Flash 上線、模型改名與降價（2026-09-10）](https://api-docs.deepseek.com/updates) · [news](https://api-docs.deepseek.com/news)

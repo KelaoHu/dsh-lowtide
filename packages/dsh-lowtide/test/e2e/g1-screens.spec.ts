@@ -24,6 +24,7 @@ import { copyFileSync, mkdirSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { E2E_WORKSPACE } from './workspace.ts'
+import { openConversation, pillOf } from './pill.ts'
 
 // Human-review copy of the screenshots (machine-independent).
 const OUT = join(tmpdir(), 'g1-screens')
@@ -38,20 +39,15 @@ async function shot(page: Page, name: string): Promise<void> {
   await page.waitForTimeout(250)
 }
 
-/** The price pill only renders inside a live session header. */
+/**
+ * The price pill only renders inside a live conversation header.
+ *
+ * v0.2.2: the old `/\/M/` sentinel (the pill used to print a "¥1.5/M" price)
+ * disappeared in the v3.1 pill redesign — the shared `openConversation()`
+ * helper opens a conversation with content deterministically.
+ */
 async function openSession(page: Page): Promise<void> {
-  const fallbackTitle = process.env.LOWTIDE_E2E_SESSION_TITLE
-  for (let i = 0; i < 15; i++) {
-    if ((await page.getByText(/\/M/).count()) > 0) return
-    await page.waitForTimeout(2000)
-  }
-  // Optional fallback: pin a host session title via LOWTIDE_E2E_SESSION_TITLE
-  // so the pill can be reached when no session is currently open.
-  if (fallbackTitle !== undefined && fallbackTitle.trim() !== '') {
-    await page.getByText(fallbackTitle.trim()).first().click()
-    await page.waitForTimeout(6000)
-  }
-  expect(await page.getByText(/\/M/).count()).toBeGreaterThan(0)
+  await openConversation(page)
 }
 
 /** Dismiss an active intercept card (✕) so the native composer + dock show. */

@@ -230,11 +230,13 @@ export async function getConfig(): Promise<ConfigResponse> {
 }
 
 /** Settings-page meta from the live state: system timezone + official peak
- *  windows converted to the local clock (explainer + one-click adopt). */
+ *  windows converted to the local clock (explainer + one-click adopt), plus
+ *  whether the saved windows drifted from the official schedule. */
 export async function getStateMeta(): Promise<{
   ok: boolean
   systemTz?: string
   officialInLocal?: Array<{ label: string; start: string; end: string; crossesDay: boolean; days?: number[] }>
+  officialDrift?: boolean
   error?: string
 }> {
   try {
@@ -247,6 +249,7 @@ export async function getStateMeta(): Promise<{
       officialInLocal: Array.isArray(body.officialInLocal)
         ? (body.officialInLocal as Array<{ label: string; start: string; end: string; crossesDay: boolean; days?: number[] }>)
         : [],
+      officialDrift: body.officialDrift === true,
     }
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) }

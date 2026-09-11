@@ -78,7 +78,7 @@ Schritt zwei ist das, was lowtide von einem „vollautomatisierten Skript" unter
 
 ![advanced-options](../assets/screenshots/advanced-options.png)
 
-**Wählen Sie ein beliebiges Modell.** Die Stapelausführung nutzt standardmäßig das offizielle `deepseek-v4-flash`, aber jede Aufgabe kann ihr eigenes Modell wählen — alles, was mit Ihrem Harness verbunden ist, erscheint im Dropdown, gruppiert nach Anbieter. Private Anbieter funktionieren ebenfalls. Nicht-offizielle Modelle haben keine öffentliche Preistabelle, daher sagt das Hauptbuch ehrlich „Preis unbekannt"; fügen Sie in den Einstellungen eine Preis-Übersteuerung hinzu, wenn Sie die Buchführung exakt wollen.
+**Wählen Sie ein beliebiges Modell.** Die Stapelausführung nutzt standardmäßig das offizielle `deepseek-flash`, aber jede Aufgabe kann ihr eigenes Modell wählen — alles, was mit Ihrem Harness verbunden ist, erscheint im Dropdown, gruppiert nach Anbieter. Private Anbieter funktionieren ebenfalls. Nicht-offizielle Modelle haben keine öffentliche Preistabelle, daher sagt das Hauptbuch ehrlich „Preis unbekannt"; fügen Sie in den Einstellungen eine Preis-Übersteuerung hinzu, wenn Sie die Buchführung exakt wollen.
 
 ![model-picker](../assets/screenshots/model-picker.png)
 
@@ -90,7 +90,7 @@ Schritt zwei ist das, was lowtide von einem „vollautomatisierten Skript" unter
 
 ![settings](../assets/screenshots/settings.png)
 
-Drei weitere Oberflächen verstecken sich im Tagesablauf: die **Preis-Pille** (Sitzungs-Header — beschäftigt/inaktiv, Countdown, Warteschlangengröße; Klick zum Bearbeiten der Fenster), die **Abfang-Karte zu Spitzenzeiten** (tippen in der Spitzenzeit, sie erscheint; der Preisunterschied wird erklärt; Ihr Entwurf überlebt) und der **Ausführungsbericht** (das Morgen-Briefing: Ersparnisse zuerst, Anomalien angeheftet, Kandidaten warten auf Ihre Wahl, Markdown-Kopie mit einem Klick).
+Drei weitere Oberflächen verstecken sich im Tagesablauf: die **Preis-Pille** (Sitzungs-Header — beschäftigt/inaktiv, Warteschlangengröße; Klick zum Bearbeiten der Fenster), die **Abfang-Karte zu Spitzenzeiten** (tippen in der Spitzenzeit, sie erscheint; der Preisunterschied wird erklärt; Ihr Entwurf überlebt) und der **Ausführungsbericht** (das Morgen-Briefing: Ersparnisse zuerst, Anomalien angeheftet, Kandidaten warten auf Ihre Wahl, Markdown-Kopie mit einem Klick).
 
 ## Über die Arbeitsbereiche von lowtide
 
@@ -270,8 +270,8 @@ Preflight fehlgeschlagen: Arbeitsbereich verschwunden, Git-Snapshot bewegt, eine
 
 ## Bekannte Einschränkungen und Roadmap
 
-- Release-Kandidat (v0.1.1), aus dem Quellcode installiert; e2e benötigt eine lebende dsh-web-Instanz.
-- Standard-Stapelmodell ist `deepseek-v4-flash`; nicht-offizielle Modelle haben keine öffentliche Preistabelle — das Hauptbuch markiert sie als „Preis unbekannt", in den Einstellungen auffüllbar.
+- Release-Kandidat (v0.2.2), aus dem Quellcode installiert; e2e benötigt eine lebende dsh-web-Instanz.
+- Standard-Stapelmodell ist `deepseek-flash`; nicht-offizielle Modelle haben keine öffentliche Preistabelle — das Hauptbuch markiert sie als „Preis unbekannt", in den Einstellungen auffüllbar.
 - Limit pro Aufgabe 240 Minuten; Zeitüberschreitung bricht ab und versucht es einmal erneut.
 - Roadmap-Kandidaten: mehrere Fenster und Stapel, Aufgaben-Abhängigkeitsgraphen, automatische Budgetverteilung, Berichts-Push (E-Mail/Webhook), Preisänderungs-Warnungen.
 
@@ -312,7 +312,7 @@ Möge dieses Harness-Plugin vom Volke, durch das Volk und für das Volk sein. M�
 MIT-Lizenz (siehe [LICENSE](../LICENSE)).
 
 - Gebaut auf [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/dsh) · dem Cordis-Plugin-Ökosystem
-- [DeepSeek-Preisanpassungsankündigung (2026-08-13)](https://finance.eastmoney.com/a/202608133840616378.html) · [Berichterstattung zum Inkrafttreten (2026-08-17)](https://www.dzwww.com/news/ssnews/202608/t20260817_18025522.htm) · [Wochenendpreis-Hinweis](https://www.ithome.com/0/993/095.htm)
+- [DeepSeek-Preisanpassungsankündigung (2026-09-10)](https://api-docs.deepseek.com/quick_start/pricing) · [Berichterstattung zum Inkrafttreten (2026-09-10)](https://api-docs.deepseek.com/updates) · [news](https://api-docs.deepseek.com/news)
 
 ---
 

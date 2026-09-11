@@ -5,7 +5,7 @@
  */
 
 import type { PriceTier } from './pricing.ts'
-import { OFFICIAL_PEAK_WINDOWS } from './pricing.ts'
+import { FLASH_MODEL_ID, OFFICIAL_PEAK_WINDOWS } from './pricing.ts'
 import type { WindowCfg } from './windows.ts'
 
 export type TaskStatus =
@@ -40,14 +40,22 @@ export type TaskStrategy = 'single' | 'iterative' | 'sampling' | 'review'
 
 export const MAX_ROUNDS = 5
 
-/** Reasoning effort levels across harness adapters. DeepSeek ships
- *  off/low/high/max; llm-pi-ai providers may additionally expose
- *  minimal/medium/xhigh. The union covers every level any adapter can offer
- *  so per-model reasoning stays provider-agnostic. */
+/** Reasoning effort levels across harness adapters. The DeepSeek adapter ships
+ *  off/low/high/max and THROWS `UNSUPPORTED_REASONING_EFFORT` for anything
+ *  else (verified in dsh-llm-deepseek 0.1.5-rc.1); llm-pi-ai providers may
+ *  additionally expose minimal/medium/xhigh. The union covers every level any
+ *  adapter can offer so per-task reasoning stays provider-agnostic — the
+ *  runner still validates each request against the model's declared set. */
 export type ReasoningEffort = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max'
 
-/** The two models with official price entries (used as deepseek defaults). */
-export const OFFICIAL_MODELS: readonly string[] = ['deepseek-v4-flash', 'deepseek-v4-pro']
+/** The reasoning levels every DeepSeek adapter accepts (its wire set). */
+export const DEEPSEEK_REASONING_EFFORTS: readonly ReasoningEffort[] = ['off', 'low', 'high', 'max']
+
+/** Billing id of the current official flash model (DeepSeek-V4.1-Flash). */
+export { FLASH_MODEL_ID as DEFAULT_MODEL_ID } from './pricing.ts'
+
+/** Models with an official price entry, most-used first (deepseek defaults). */
+export const OFFICIAL_MODELS: readonly string[] = [FLASH_MODEL_ID, 'deepseek-v4-pro']
 
 export interface FileRef {
   path: string

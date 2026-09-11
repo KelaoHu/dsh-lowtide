@@ -10,6 +10,14 @@
 # so restate the dsh base table verbatim and append the lowtide presets
 # (read/standard/trusted, all approval=never — night runs are unattended by
 # design).
+#
+# ⚠️ VERSION BINDING: the three base rows below are a verbatim copy of
+# `@deepseek-ai/dsh-base/cordis.patch.yml` (row id `permission`) as of
+# dsh-base 0.1.1-rc.2 — re-verified identical in 0.1.5-rc.1. Because a row
+# patch replaces the whole config, a future dsh-base release that ADDS a base
+# preset would have it silently dropped here: after upgrading the Harness,
+# diff this block against the installed `@deepseek-ai/dsh-base/cordis.patch.yml`
+# and restate any new rows. (`dsh --dump-config` prints the composed tree.)
 - id: permission
   config:
     presets:

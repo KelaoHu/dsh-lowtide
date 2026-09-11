@@ -1,6 +1,6 @@
 {
   "name": "dsh-lowtide",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "lowtide: human-adjudicated off-peak batch task pipeline for dsh (peak/valley pricing aware)",
   "type": "module",
   "main": "lib/index.js",
@@ -45,7 +45,7 @@
     "watch": "tsdown --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "dev": "npx @deepseek-ai/dsh@0.1.0-rc.7 web --patch ./cordis.dev.yml"
+    "dev": "npx @deepseek-ai/dsh@0.1.5-rc.1 web --patch ./cordis.dev.yml"
   },
   "license": "MIT",
   "keywords": [
