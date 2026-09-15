@@ -140,6 +140,8 @@ lowtide 是 [DeepSeek Harness (dsh)](https://github.com/deepseek-ai/dsh) 的一�
 
 先装 dsh（二选一）：桌面版去 DeepSeek 官方渠道装 dsh Desktop；命令行版 `npm install -g @deepseek-ai/dsh`。然后在 dsh 的模型设置里配好一个能用的模型（比如 DeepSeek 官方 API Key）——lowtide 自己不碰你的凭据。
 
+> **兼容性（dsh-lowtide ≥ 0.2.3）:**dsh CLI **≥ 0.1.5-rc.1** 或 **DSH Desktop 2.0.3**。浏览器半包只依赖各代外壳都静态播种的模块词,一份产物两端都能启动;0.1.1 时代的 CLI 外壳与桌面端共用同一张种子表,行为应当一致,但只有上面两个目标经过实测。(0.2.2 及更早版本在 CLI 0.1.5 上无法启动——见 issue #4。)
+
 然后拉源码、构建、装进去：
 
 ```powershell
@@ -153,8 +155,8 @@ pnpm --filter lowtide-core bundle
 pnpm --filter dsh-lowtide bundle
 
 # 装进 profile——桌面端网页端同一份产物
-npx @deepseek-ai/dsh@0.1.0-rc.7 plugin --profile desktop add ./packages/dsh-lowtide   # 桌面端
-npx @deepseek-ai/dsh@0.1.0-rc.7 plugin --profile web add ./packages/dsh-lowtide       # 网页端
+npx @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile desktop add ./packages/dsh-lowtide   # 桌面端
+npx @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile web add ./packages/dsh-lowtide       # 网页端
 
 # 起开发实例（3080 端口）
 pnpm --filter dsh-lowtide dev

@@ -75,7 +75,7 @@ dsh plugin --profile web add dsh-lowtide.tgz
 dsh web
 ```
 
-- 网页端需要 `@deepseek-ai/dsh` ≥ 0.1.1-rc.2（`npm i -g @deepseek-ai/dsh` 或随桌面客户端附带），与桌面端同代引擎可同时服务两端。
+- 网页端需要 `@deepseek-ai/dsh` ≥ 0.1.5-rc.1(`npm i -g @deepseek-ai/dsh` 或随桌面客户端附带),桌面端需 DSH Desktop 2.0.3(0.1.1 代引擎);≥ 0.2.3 起同一份产物两端通吃(0.2.2 及更早版本在 CLI 0.1.5 上无法启动,见 issue #4)。
 - 两个 profile 的状态文件相互独立（`DSH_PROFILE` 隔离），桌面端与网页端可并行运行。
 - 状态文件：`$DSH_HOME/lowtide.json`（web 端为 `$DSH_HOME/profiles/web/lowtide.json`）。
 
@@ -89,8 +89,8 @@ pnpm.cmd --filter dsh-lowtide bundle      # 构建 dsh 宿主半 + 客户端 bun
 
 # 首次：把插件 link 进 profile（client 半按包名从 profile 目录 resolve）
 # 桌面端与网页端通用同一份产物，按需要装入对应 profile：
-npx.cmd --yes @deepseek-ai/dsh@0.1.0-rc.7 plugin --profile desktop add ./packages/dsh-lowtide   # 桌面端
-npx.cmd --yes @deepseek-ai/dsh@0.1.0-rc.7 plugin --profile web add ./packages/dsh-lowtide       # 网页端
+npx.cmd --yes @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile desktop add ./packages/dsh-lowtide   # 桌面端
+npx.cmd --yes @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile web add ./packages/dsh-lowtide       # 网页端
 
 # 启动（本地源码 checkout 或 npx 均可）
 pnpm.cmd dev   # = dsh web --patch ./cordis.dev.yml

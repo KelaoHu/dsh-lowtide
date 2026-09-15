@@ -1,7 +1,6 @@
 /**
  * Vendored from deepseek-harness packages/client/tsdown.client.ts (rc.5
- * snapshot, PLATFORM_MODULES cross-checked against the published rc.7
- * @deepseek-ai/dsh-client-web lib/index.js — the list is identical).
+ * snapshot).
  *
  * The shared tsdown preset itself is a monorepo-root script and ships in no
  * npm package (PLAN audit W3), so this vendor copy stands in. Changes made
@@ -16,6 +15,19 @@
  * table), CSS Modules compiled by lightningcss and auto-injected as
  * <style data-plugin="<id>">, bundle purity gate forbidding cross-plugin
  * value imports of non-platform modules.
+ *
+ * 0.2.3 platform-drift hardening (issue #4): PLATFORM_MODULES is now the
+ * INTERSECTION of the supported shell seed tables, not one generation's
+ * list — DSH Desktop 2.0.3 seeds 7 words (no dsh-client-store, no
+ * ui-dockkit); the dsh 0.1.5-rc.1 CLI web shell seeds those plus
+ * @deepseek-ai/dsh-client-store and @deepseek-ai/dsh-client-ui-dockkit; the
+ * 0.1.0-rc.7-era shell seeded a now-dead set (dsh-client-web-react,
+ * ui-attachment, schema-form). Anything outside the intersection MUST be
+ * inlined (see INLINE_SAFE) or the bundle dies at boot with "missed the
+ * module table" on hosts lacking the word. The former
+ * RUNTIME_STORE_EXEMPTION (@deepseek-ai/dsh-client-runtime/client) was
+ * exactly such a drift casualty: the package left the plugin tree after
+ * 0.1.1-rc.2, so the exemption became an unresolved external on 0.1.5.
  */
 import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
@@ -25,16 +37,15 @@ import type { UserConfig } from 'tsdown'
 import { transform } from 'lightningcss'
 
 /**
- * Browser platform modules the shell shares into the frozen module table
- * (verified against rc.7 @deepseek-ai/dsh-client-web).
+ * Platform modules seeded by EVERY supported shell (desktop 2.0.3 ∩ CLI
+ * 0.1.5-rc.1): the only safe build-time externals. Verified against the
+ * desktop web-frontend bundle and dsh-client-web@0.1.5-rc.1
+ * getStaticModules().
  */
 export const PLATFORM_MODULES = [
   'react', 'react/jsx-runtime', 'react-dom', 'react-dom/client', '@deepseek-ai/cordis',
   '@deepseek-ai/dsh-client-ui-slots',
-  '@deepseek-ai/dsh-client-web-react',
   '@deepseek-ai/dsh-client-ui-primitives',
-  '@deepseek-ai/dsh-client-ui-attachment',
-  '@deepseek-ai/dsh-client-schema-form',
 ] as const
 
 /** Virtual-id wrapper keeping module CSS away from tsdown's own css pipeline. */
@@ -44,8 +55,15 @@ const CSS_VIRTUAL_SUFFIX = '.mjs'
 /**
  * Wire/type layers a client bundle may inline: browser-safe contracts
  * with no runtime identity to share (no Symbol/instanceof/singleton state).
+ *
+ * dsh-client-store joined in 0.2.3 (issue #4): the snapshot-store engine
+ * (zustand vanilla + immer) is self-contained — lowtide's stores are
+ * plugin-private (components subscribe via useSyncExternalStore), so no
+ * instance identity is shared with the host. Inlining it immunizes the
+ * bundle against the seed-table drift between shell generations (desktop
+ * 2.0.3 does not seed it; CLI 0.1.5 does).
  */
-export const INLINE_SAFE = /^@deepseek-ai\/dsh-(host-apiproxy|session|llm|tools|brand)(\/|$)/
+export const INLINE_SAFE = /^@deepseek-ai\/dsh-(host-apiproxy|session|llm|tools|brand|client-store)(\/|$)/
 
 /** Vendored framework libraries: no cross-plugin runtime identity to share. */
 const VENDORED_LIBRARY = /^@deepseek-ai\/(cosmokit|schemastery)(\/|$)/
@@ -56,15 +74,8 @@ const GENERATED_REMOTE = /^@deepseek-ai\/dsh-[a-z0-9]+(?:-[a-z0-9]+)*\/remote$/
 /** Skip-worktree marker kept for preset-compatibility. */
 const SKIP_WORKSPACE_BUILD: UserConfig = { entry: '' }
 
-/**
- * The snapshot-store engine lives in runtime pending promotion; the lazy CJS
- * table answers this require natively (the runtime row registers its factory
- * before any dependent bundle materializes).
- */
-const RUNTIME_STORE_EXEMPTION = '@deepseek-ai/dsh-client-runtime/client'
-
-/** Externals resolved from the loader module table. */
-export const CLIENT_EXTERNALS: readonly string[] = [...PLATFORM_MODULES, RUNTIME_STORE_EXEMPTION]
+/** Externals resolved from the loader module table (the seed intersection only). */
+export const CLIENT_EXTERNALS: readonly string[] = [...PLATFORM_MODULES]
 
 /** Absolute path of this file, used as the source-map rebasing anchor. */
 const PACKAGE_ROOT = resolvePath(fileURLToPath(new URL('..', import.meta.url)))

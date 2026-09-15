@@ -9,9 +9,13 @@
  * the host locale service; every slot entry declares `locale: NS` so the
  * framework injects the typed `t` seat into component props.
  */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+// Types-only: brings the `ctx.slots` cordis service augmentation (0.1.5 home of
+// the SlotRegistry; was dsh-client-runtime/client in the rc.7 generation).
+// Erased at build — never a bundle external.
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { SettingsSectionOwnerProps } from '@deepseek-ai/dsh-client-ui-settings/client'
 import type { ReactElement } from 'react'
 import { Toast } from '@deepseek-ai/dsh-client-ui-primitives'

@@ -144,6 +144,7 @@ export function EditTaskModal({ task, t, defaultAutonomy, onClose }: {
       open
       onClose={mainOnClose}
       title={t('modal.editTitle')}
+      closeLabel={t('modal.close')}
       description={t('modal.editDesc', { id: task.id })}
       className={styles.wide}
       footer={

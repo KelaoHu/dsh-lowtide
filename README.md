@@ -142,6 +142,8 @@ Prerequisites: Node `^22.19 || >=24`, pnpm `11.7`. Everything is on the public n
 
 First install dsh (pick one): Desktop from DeepSeek's official channels, or `npm install -g @deepseek-ai/dsh` for the CLI. Then configure a working model in dsh's settings (e.g. an official DeepSeek API key) — lowtide never touches your credentials.
 
+> **Compatibility (dsh-lowtide ≥ 0.2.3):** dsh CLI **≥ 0.1.5-rc.1** or **DSH Desktop 2.0.3**. The browser half limits itself to the module words every shell generation seeds statically, so one artifact boots on both; 0.1.1-era CLI shells share the desktop's seed table and should behave the same, but only the two targets above are tested. (0.2.2 and older fail to boot on CLI 0.1.5 — see issue #4.)
+
 Then clone, build, install:
 
 ```powershell
@@ -155,8 +157,8 @@ pnpm --filter lowtide-core bundle
 pnpm --filter dsh-lowtide bundle
 
 # Install into a profile — one artifact serves desktop and web
-npx @deepseek-ai/dsh@0.1.0-rc.7 plugin --profile desktop add ./packages/dsh-lowtide   # Desktop
-npx @deepseek-ai/dsh@0.1.0-rc.7 plugin --profile web add ./packages/dsh-lowtide       # Web
+npx @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile desktop add ./packages/dsh-lowtide   # Desktop
+npx @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile web add ./packages/dsh-lowtide       # Web
 
 # Start the dev instance (port 3080)
 pnpm --filter dsh-lowtide dev

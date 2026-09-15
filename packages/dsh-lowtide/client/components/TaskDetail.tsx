@@ -21,7 +21,7 @@ export function TaskDetail({ task, t, onClose, onEdit }: {
   // pending-review / queued / deferred can be edited in place.
   const editable = task.status === 'pending-review' || task.status === 'queued' || task.status === 'deferred'
   return (
-    <Modal open onClose={onClose} title={t('detail.title')} description={`${statusLabel(t, task.status)} · ${task.id}`}
+    <Modal open onClose={onClose} title={t('detail.title')} closeLabel={t('detail.close')} description={`${statusLabel(t, task.status)} · ${task.id}`}
       footer={
         <div className={styles.modalFooter}>
           {editable && onEdit !== undefined && (

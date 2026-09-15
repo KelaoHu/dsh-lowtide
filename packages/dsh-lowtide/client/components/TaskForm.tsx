@@ -350,6 +350,7 @@ export function TaskForm(props: {
             open={props.advancedOpen ?? false}
             onClose={() => props.onAdvancedOpenChange?.(false)}
             title={t('modal.advancedTitle')}
+            closeLabel={t('modal.close')}
             footer={
               <Button variant="primary" size="md" onClick={() => props.onAdvancedOpenChange?.(false)}>
                 {t('modal.advancedDone')}

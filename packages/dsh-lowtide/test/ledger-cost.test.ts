@@ -7,7 +7,7 @@
  *
  * Prices follow the 2026-09-10 V4.1-Flash table: flash peak = 2 / 0.04 / 8.
  */
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { peakCostOf } from '../src/runner.ts'
 import { hasPriceEntry, OFFICIAL_PRICES, resolvePriceModel } from 'lowtide-core'
 
@@ -26,8 +26,17 @@ describe('peakCostOf', () => {
   })
 
   test('official pro model uses the pro peak row', () => {
-    expect(peakCostOf(USAGE, 'deepseek-v4-pro', undefined))
-      .toBe(1 * 9 + 0.5 * 0.3 + 0.2 * 27) // 9 + 0.15 + 5.4
+    // Pin the clock BEFORE the V4 Pro retirement billing route takes effect
+    // (Beijing 2026-09-14 12:00 = 04:00Z): after it, pro bills as flash and
+    // this baseline collapses onto the flash row by design.
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-09-13T00:00:00.000Z'))
+      expect(peakCostOf(USAGE, 'deepseek-v4-pro', undefined))
+        .toBe(1 * 9 + 0.5 * 0.3 + 0.2 * 27) // 9 + 0.15 + 5.4
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   test('retired vision id aliases to flash (peak baseline exists)', () => {

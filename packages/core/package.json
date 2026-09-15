@@ -1,6 +1,6 @@
 {
   "name": "lowtide-core",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Platform-agnostic core logic for lowtide (windows/pricing/model/digest/scheduler/ledger)",
   "type": "module",
   "main": "lib/index.js",

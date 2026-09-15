@@ -154,6 +154,7 @@ export function NewTaskModal({ open, t, defaultAutonomy, onClose }: {
       open={open}
       onClose={mainOnClose}
       title={t('modal.title')}
+      closeLabel={t('modal.close')}
       description={t('modal.desc')}
       className={styles.wide}
       footer={

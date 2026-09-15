@@ -192,6 +192,7 @@ export function MorningReport({ t }: MorningReportProps): React.JSX.Element {
         open
         onClose={close}
         title={t('report.history')}
+        closeLabel={t('report.close')}
         description={t('report.historyDesc', { count: history.length })}
         footer={
           <div className={styles.modalFooter}>
@@ -258,6 +259,7 @@ export function MorningReport({ t }: MorningReportProps): React.JSX.Element {
       open
       onClose={close}
       title={t('report.title', { date: reportDateLabel(current.date) })}
+      closeLabel={t('report.close')}
       description={current.summary}
       footer={
         <div className={styles.modalFooter}>

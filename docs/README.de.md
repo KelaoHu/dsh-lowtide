@@ -158,8 +158,8 @@ pnpm --filter lowtide-core bundle
 pnpm --filter dsh-lowtide bundle
 
 # In ein Profil installieren — ein Artefakt dient Desktop und Web
-npx @deepseek-ai/dsh@0.1.0-rc.7 plugin --profile desktop add ./packages/dsh-lowtide   # Desktop
-npx @deepseek-ai/dsh@0.1.0-rc.7 plugin --profile web add ./packages/dsh-lowtide       # Web
+npx @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile desktop add ./packages/dsh-lowtide   # Desktop
+npx @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile web add ./packages/dsh-lowtide       # Web
 
 # Dev-Instanz starten (Port 3080)
 pnpm --filter dsh-lowtide dev

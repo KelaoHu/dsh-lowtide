@@ -12,7 +12,7 @@
  * (lib/tierClock.ts), so it keeps following the wall clock even if every
  * network path is down.
  */
-import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { WindowCfg } from 'lowtide-core'
 import { isStreamFresh, OFF_TIER, SSE_STALE_MS, startTierClock, tierTimeZone, type TierClock, type TierSnapshot } from './lib/tierClock.ts'
 

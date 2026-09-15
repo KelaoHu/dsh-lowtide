@@ -6,7 +6,8 @@
  */
 import { installModelSelection, type ModelSelectionRef } from '@deepseek-ai/dsh-agent'
 import { createUserMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
-import { SessionId } from '@deepseek-ai/dsh-session'
+import { SessionId, SessionLogOffset } from '@deepseek-ai/dsh-session'
+import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { Agent } from '@deepseek-ai/dsh-agent'
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-agent'
@@ -314,25 +315,44 @@ export async function executeTurns(
       const reason = error instanceof Error ? error.message : String(error)
       console.error(`[lowtide] resume ${resumeSessionId} failed (${reason}) — trying fork-style continuation`)
       // Tier 2: seed a new session with the live source's complete history.
+      // Cross-generation compat: dsh 0.1.5 renamed Session.events →
+      // snapshotEvents() and moved the fork prefix length from meta.seedLength
+      // to the top-level inheritedEventCount (gated on meta.isSeeded); the
+      // DSH Desktop 2.0.3 host still runs the 0.1.1-era session API (an
+      // `events` array + meta.seedLength). Feature-detect once and shape both
+      // the read and the create call to the host's generation.
       const live = ctx.sessions.get(SessionId(resumeSessionId))
-      const cut = live === undefined ? null : forkSeedBoundary(live.events)
-      if (live !== undefined && cut !== null) {
-        const seed = live.events.slice(0, cut)
-        handle = await ctx.agents.create({
-          sessionId: SessionId(`lt-${task.id}-${Date.now()}`),
-          seed,
-          meta: {
-            cwd: workspacePath,
-            parentSession: SessionId(resumeSessionId),
-            seedLength: cut,
-            // Keep the source's agent preset so the seeded history's tool
-            // semantics match the reassembled agent (the harness refuses to
-            // replay tool history against a different composition).
-            ...(live.header.agentPreset !== undefined ? { agentPreset: live.header.agentPreset } : {}),
-          },
-          agentOptions: { provider: selection.provider, model: selection.model },
-          setup,
-        })
+      const liveCompat = live as unknown as {
+        snapshotEvents?: () => readonly SessionEvent[]
+        events?: readonly SessionEvent[]
+      } | undefined
+      const newSessionApi = typeof liveCompat?.snapshotEvents === 'function'
+      const liveEvents = liveCompat === undefined ? undefined : (newSessionApi ? liveCompat.snapshotEvents!() : liveCompat.events)
+      const cut = liveEvents === undefined ? null : forkSeedBoundary(liveEvents)
+      if (live !== undefined && liveEvents !== undefined && cut !== null) {
+        const seed = liveEvents.slice(0, cut)
+        const sessionId = SessionId(`lt-${task.id}-${Date.now()}`)
+        const agentOptions = { provider: selection.provider, model: selection.model }
+        // Keep the source's agent preset so the seeded history's tool
+        // semantics match the reassembled agent (the harness refuses to
+        // replay tool history against a different composition).
+        const preset = live.header.agentPreset !== undefined ? { agentPreset: live.header.agentPreset } : {}
+        handle = await ctx.agents.create(newSessionApi
+          ? {
+              sessionId,
+              seed,
+              inheritedEventCount: SessionLogOffset(cut),
+              meta: { cwd: workspacePath, parentSession: SessionId(resumeSessionId), isSeeded: true, ...preset },
+              agentOptions,
+              setup,
+            }
+          : ({
+              sessionId,
+              seed,
+              meta: { cwd: workspacePath, parentSession: SessionId(resumeSessionId), seedLength: cut, ...preset },
+              agentOptions,
+              setup,
+            } as unknown as Parameters<typeof ctx.agents.create>[0]))
         forked = true
         console.log(`[lowtide] ✓ continuation session ${handle.agent.session.id} seeded with ${seed.length} events from ${resumeSessionId} (lossless fork)`)
       } else {

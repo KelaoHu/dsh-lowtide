@@ -2,6 +2,65 @@
 
 All notable changes to dsh-lowtide are documented in this file.
 
+## [0.2.3] - 2026-09-15
+
+### Fixed
+
+- **Web boot failure on dsh 0.1.5 (issue #4).** The 0.2.2 client bundle
+  externalised `@deepseek-ai/dsh-client-runtime/client`, a package the 0.1.5
+  plugin tree no longer ships (its snapshot-store engine was promoted to
+  `@deepseek-ai/dsh-client-store`). With no manifest row and no seed word for
+  it, the client module loader threw
+  `require("@deepseek-ai/dsh-client-runtime/client") missed the module table`
+  and the whole plugin failed to load. The store engine is now imported from
+  `@deepseek-ai/dsh-client-store` and **bundled into** `lib/client.js`
+  (a plugin-private store needs no shared identity), so the bundle's externals
+  shrink to the three words every shell generation seeds statically:
+  `react`, `react/jsx-runtime`, `@deepseek-ai/dsh-client-ui-primitives`.
+  Verified against a clean dsh 0.1.5-rc.1 install: every external resolves to
+  a shell static module, and the served bundle contains no `dsh-client-runtime`
+  reference.
+- **Continuation fork path reconciled with the dsh 0.1.5 session API.**
+  `Session.events` is gone in favour of `snapshotEvents()`, and the fork's
+  inherited prefix length moved from `meta.seedLength` to the top-level
+  `inheritedEventCount` (gated on `meta.isSeeded`). The host half now
+  feature-detects the generation at runtime, so lossless fork continuation
+  works on both dsh ≥ 0.1.5-rc.1 and the 0.1.1-era host inside DSH Desktop
+  2.0.3.
+- **`Modal` calls updated for ui-primitives 0.1.5**, which made the
+  accessibility prop `closeLabel` required (it defaulted to `"Close"` before).
+  All seven call sites now pass a localized label (new `modal.close` key;
+  existing `detail.close` / `report.close` reused). Safe on the desktop's
+  0.1.1-era Modal too — the prop already existed there with a default.
+- **Two time-bomb tests pinned.** `ledger-cost` / `store-intake` asserted
+  V4 Pro peak pricing with the live clock; since the dated billing route took
+  effect (Beijing 2026-09-14 12:00, pro bills as flash) they failed on any run
+  after the switch. Both now pin the clock before the route.
+
+### Changed
+
+- Build hardening: the client bundler's platform-external list is now the
+  **7-word intersection seeded by every known shell generation** (react,
+  react/jsx-runtime, react-dom, react-dom/client, cordis, ui-slots,
+  ui-primitives); everything else `@deepseek-ai/*` must be explicitly inlined
+  or the build fails. The per-package exemption for the runtime client is
+  deleted — exemptions are exactly what produced #4.
+- `dsh.client.inject` pruned to the services the client actually waits on
+  (`locale`, `ui-conversation`, `ui-settings`, `connection`).
+- Dev/peer dependencies moved to the 0.1.5 line (`^0.1.5-rc.1`);
+  `dsh-client-runtime` and the unused `dsh-host-apiproxy` dropped,
+  `dsh-client-store` + `dsh-client-ui-renderer` (types-only: the 0.1.5 home of
+  the `ctx.slots` augmentation) added.
+
+### Compatibility
+
+- dsh CLI **≥ 0.1.5-rc.1** (verified on a clean isolated install: manifest
+  row, loader replay, host endpoints) and **DSH Desktop 2.0.3** (0.1.1-era
+  shell — its seed table covers the three externals, and the session fork
+  shim targets its API generation). Older 0.1.1-era CLI shells share the
+  desktop's seed table and should behave the same, but only the two targets
+  above are tested.
+
 ## [0.2.2] - 2026-09-11
 
 ### Fixed

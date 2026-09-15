@@ -202,6 +202,7 @@ export function WindowEditorModal({ open, onClose, t }: {
       open={open}
       onClose={onClose}
       title={t('editor.title')}
+      closeLabel={t('modal.close')}
       className={styles.wide}
       footer={
         <div className={styles.footer}>

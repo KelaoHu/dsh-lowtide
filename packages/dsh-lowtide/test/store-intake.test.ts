@@ -1,4 +1,4 @@
-import { describe, expect, test, afterEach } from 'vitest'
+import { describe, expect, test, afterEach, vi } from 'vitest'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -269,13 +269,22 @@ describe('intake', () => {
   })
 
   test('model passes through and scales the estimate (pro > flash)', async () => {
-    const dir = tempDir()
-    const flash = await intake({ prompt: '测试指令内容', strategy: 'single' }, dir)
-    const pro = await intake({ prompt: '测试指令内容', strategy: 'single', model: 'deepseek-v4-pro' }, dir)
-    expect(flash.ok && pro.ok).toBe(true)
-    expect(flash.task?.model).toBeUndefined()
-    expect(pro.task?.model).toBe('deepseek-v4-pro')
-    expect(pro.task?.estimateYuan ?? 0).toBeGreaterThan(flash.task?.estimateYuan ?? 0)
+    // Pin the clock BEFORE the V4 Pro retirement billing route (Beijing
+    // 2026-09-14 12:00 = 04:00Z): after it, pro bills as flash and the two
+    // estimates are equal by design.
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-09-13T00:00:00.000Z'))
+      const dir = tempDir()
+      const flash = await intake({ prompt: '测试指令内容', strategy: 'single' }, dir)
+      const pro = await intake({ prompt: '测试指令内容', strategy: 'single', model: 'deepseek-v4-pro' }, dir)
+      expect(flash.ok && pro.ok).toBe(true)
+      expect(flash.task?.model).toBeUndefined()
+      expect(pro.task?.model).toBe('deepseek-v4-pro')
+      expect(pro.task?.estimateYuan ?? 0).toBeGreaterThan(flash.task?.estimateYuan ?? 0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   test('modelProvider rides along with a task-level model (custom providers)', async () => {
