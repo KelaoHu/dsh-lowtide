@@ -2,6 +2,18 @@
 
 All notable changes to dsh-lowtide are documented in this file.
 
+## [0.2.5] - 2026-09-17
+
+### Fixed
+
+- **Marketplace visibility on DSH Desktop restored.** The peerDependencies
+  floor moved to `^0.1.5-rc.1` in 0.2.3, and the marketplace's
+  compatibility filter reads exactly that field — on the desktop's
+  0.1.1-generation host the entry stopped matching and was hidden from
+  Discover/search, even though the code runs on both engine generations
+  (0.2.3 added runtime feature-detection for exactly that). The floor is
+  back at `^0.1.0-rc.7`. No functional change.
+
 ## [0.2.4] - 2026-09-15
 
 ### Added
