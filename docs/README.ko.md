@@ -183,6 +183,7 @@ pnpm --filter dsh-lowtide dev
 |---|---|---|---|
 | `autonomy` | `'l1'\|'l2'\|'l3'` | `l2` | 자율성 수준; 티켓 모달에서 작업별 오버라이드 |
 | `batch.window` | `"HH:MM-HH:MM"` | `19:00-23:30` | 밸리 실행 창(로컬 시간대) |
+| `batch.windows` | `"HH:MM-HH:MM"`[] | — | 여러 실행 창(1–6개); 각 창은 하루에 한 번 배치를 실행합니다. 없으면 단일 `batch.window` |
 | `batch.tz` | IANA 시간대 | 시스템 | 실행 창 시간대(비우면 로컬) |
 | `batch.gateLeadMin` | 분 | `30` | 배치 게이트 사전 시간 |
 | `batch.maxTasksPerNight` | 숫자 | `10` | 배치당 작업 수 상한 |

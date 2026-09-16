@@ -2,6 +2,47 @@
 
 All notable changes to dsh-lowtide are documented in this file.
 
+## [0.2.4] - 2026-09-15
+
+### Added
+
+- **Multiple off-peak run windows (issue #5).** The batch schedule is no
+  longer limited to a single daily window: the settings section now edits a
+  list (e.g. a noon slot *and* an evening slot), with add/remove rows
+  (1–6 windows), inline duplicate merging, and a non-blocking overlap hint.
+  Each window runs at most one batch per occurrence — the once-per-window
+  latch keys on the window's range, so noon and evening batches both fire on
+  the same day. The confirm gate and the countdown point at the nearest
+  upcoming window, and the morning report records which window actually ran.
+  (The peak/off-peak *price* windows below it already supported any number of
+  entries — the "two windows" seen there are just the official defaults.)
+
+### Fixed
+
+- **Run-window editor layout in Settings.** The editor sat inside one
+  `minmax(200px, 1fr)` grid cell while a row needs ~316px and grid items do
+  not clip, so on narrow panes the row (and its delete button) spilled over
+  the neighbouring field. The editor now owns a full grid row
+  (`grid-column: 1 / -1`), rows wrap like the price-window rows, and the
+  inputs are shrinkable 36px controls. The row's delete button moved from the
+  28px `sm` size to the full `md` target, and the last remaining row's
+  disabled button now carries a tooltip ("at least one run window").
+
+### Changed
+
+- **Config shape: `batch.windows: string[]` joins the legacy `batch.window`.**
+  The list is authoritative on write; `window` is kept as a mirror of its
+  first entry, so downgrading to 0.2.3 keeps running window #1 and pre-0.2.4
+  state files load untouched (absent list = the single legacy window).
+  `PUT /ds-lowtide/config` validates each range (`HH:MM-HH:MM`, 1–6 entries)
+  and rejects exact duplicates. Overlapping windows are allowed: the first
+  covering range owns the latch and tasks already run inside the overlap are
+  not re-run.
+- **Semantics unchanged otherwise:** `maxTasksPerNight` stays a *per-batch*
+  cap (two windows may run up to 2× that many tasks in a day), while
+  `budgetDailyYuan` stays a *daily* cap shared across windows; `paused`,
+  `tz`, and the gate lead time remain global.
+
 ## [0.2.3] - 2026-09-15
 
 ### Fixed

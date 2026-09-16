@@ -13,7 +13,7 @@
  *  - skip the batch entirely when nothing is queued (no empty reports).
  */
 import type { Context } from '@deepseek-ai/cordis'
-import { addDaysInTz, dayStartInTz, localParts, parseWindowRange, systemTimeZone } from 'lowtide-core'
+import { addDaysInTz, batchWindowList, dayStartInTz, localParts, parseWindowRange, systemTimeZone } from 'lowtide-core'
 import { LowtideStore } from './store.ts'
 import { runBatch } from './runner.ts'
 
@@ -27,18 +27,33 @@ export interface Scheduler {
 /** Maximum consecutive preflight deferrals before a task is marked failed. */
 export const MAX_PREFLIGHT_DEFER = 3
 
-/** Whether `now` is inside [start, end) of the batch window (local tz). */
-export function inBatchWindow(now: Date, window: string, tz?: string): boolean {
-  const { start, end } = parseWindowRange(window)
+/** Ranges covering `now`, in list order (midnight-crossing aware). */
+function activeWindows(now: Date, windows: string[], tz?: string): string[] {
   const { minutes } = localParts(now, tz ?? systemTimeZone())
-  if (end > start) return minutes >= start && minutes < end
-  if (end < start) return minutes >= start || minutes < end
-  return true
+  return windows.filter((range) => {
+    const { start, end } = parseWindowRange(range)
+    if (end > start) return minutes >= start && minutes < end
+    if (end < start) return minutes >= start || minutes < end
+    return true
+  })
 }
 
-/** The batch window's end as an absolute Date (today's or the next occurrence). */
-export function batchWindowEnd(now: Date, window: string, tz?: string): Date {
-  const { start, end } = parseWindowRange(window)
+/** Whether `now` is inside any of the batch windows (local tz). Accepts the
+ *  legacy single-range string or the multi-window list (issue #5). */
+export function inBatchWindow(now: Date, window: string | string[], tz?: string): boolean {
+  const list = Array.isArray(window) ? window : [window]
+  return activeWindows(now, list, tz).length > 0
+}
+
+/** The end of the ACTIVE batch window as an absolute Date (today's or the
+ *  next occurrence). With multiple windows the first covering range wins —
+ *  overlapping windows are a user choice the once-per-window latch and the
+ *  running guard absorb (documented in README/CHANGELOG). */
+export function batchWindowEnd(now: Date, window: string | string[], tz?: string): Date {
+  const list = Array.isArray(window) ? window : [window]
+  const active = activeWindows(now, list, tz)
+  const range = active.length > 0 ? active[0] : list[0]
+  const { end } = parseWindowRange(range)
   const resolvedTz = tz ?? systemTimeZone()
   // Calendar-day arithmetic: fixed 24h deltas drift across DST transitions.
   const dayStart = dayStartInTz(now, resolvedTz)
@@ -60,16 +75,21 @@ function localDateKey(date: Date, tz: string): string {
 
 /**
  * Identity of the batch window currently in progress, keyed by the calendar
- * day the window STARTED (so a midnight-crossing window cannot run twice).
- * Returns null when `now` is outside the window.
+ * day the window STARTED (so a midnight-crossing window cannot run twice)
+ * plus the window's range string — with multiple windows (issue #5) each
+ * window earns its own once-per-occurrence latch. Returns null when `now`
+ * is outside every window.
  */
-export function currentWindowKey(now: Date, window: string, tz?: string): string | null {
-  if (!inBatchWindow(now, window, tz)) return null
+export function currentWindowKey(now: Date, window: string | string[], tz?: string): string | null {
+  const list = Array.isArray(window) ? window : [window]
+  const active = activeWindows(now, list, tz)
+  if (active.length === 0) return null
+  const range = active[0]
   const resolvedTz = tz ?? systemTimeZone()
-  const { start } = parseWindowRange(window)
+  const { start } = parseWindowRange(range)
   const { minutes } = localParts(now, resolvedTz)
   const anchor = minutes >= start ? now : addDaysInTz(now, resolvedTz, -1)
-  return `${localDateKey(anchor, resolvedTz)}|${window}|${resolvedTz}`
+  return `${localDateKey(anchor, resolvedTz)}|${range}|${resolvedTz}`
 }
 
 /** Window-start recovery for deferred tasks (PLAN §2.1 + review B3). */
@@ -105,13 +125,15 @@ export function startScheduler(ctx: Context, store: LowtideStore, tickMs = 30_00
     if (running) return
     if (!forced && store.config.batch.paused) return
     const now = new Date()
-    if (!forced && !inBatchWindow(now, store.config.batch.window, store.config.batch.tz)) {
-      // Outside the window: clear the once-per-window latch so the next
+    const wins = batchWindowList(store.config.batch)
+    const activeRange = forced ? undefined : activeWindows(now, wins, store.config.batch.tz)[0]
+    if (!forced && activeRange === undefined) {
+      // Outside every window: clear the once-per-window latch so the next
       // window (possibly the same day after a config change) may run again.
       if (lastWindowKey !== null) lastWindowKey = null
       return
     }
-    const key = forced ? null : currentWindowKey(now, store.config.batch.window, store.config.batch.tz)
+    const key = activeRange === undefined ? null : currentWindowKey(now, wins, store.config.batch.tz)
     if (!forced) {
       if (key !== null && key === lastWindowKey) return
       if (key !== null) lastWindowKey = key
@@ -121,8 +143,10 @@ export function startScheduler(ctx: Context, store: LowtideStore, tickMs = 30_00
     running = true
     startedAt = new Date()
     try {
-      const end = forced ? new Date(Date.now() + 24 * 3600_000) : batchWindowEnd(new Date(), store.config.batch.window, store.config.batch.tz)
-      await runBatch(ctx, store, end, forced)
+      const end = forced ? new Date(Date.now() + 24 * 3600_000) : batchWindowEnd(new Date(), wins, store.config.batch.tz)
+      // The report records the window that actually triggered this batch
+      // (forced manual runs label the first configured window, as before).
+      await runBatch(ctx, store, end, forced, activeRange ?? wins[0])
     } catch (error) {
       ctx.logger('lowtide').warn('batch failed: %s', error instanceof Error ? error.message : String(error))
     } finally {

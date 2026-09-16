@@ -10,6 +10,7 @@ import type {} from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-agent-default-model'
 import type {} from '@deepseek-ai/dsh-permission-presets'
 import type {} from '@deepseek-ai/dsh-agent-presets'
+import { batchWindowList } from 'lowtide-core'
 import { registerRoutes } from './routes.ts'
 import { startScheduler } from './scheduler.ts'
 import { LowtideStore, stateFilePath } from './store.ts'
@@ -19,8 +20,8 @@ export const inject = ['webServer', 'agents', 'permissionPresets', 'agentDefault
 
 export function apply(ctx: Context): void {
   const store = LowtideStore.load(stateFilePath())
-  ctx.logger('lowtide').info('host half loaded (store: %d tasks, batch window %s)',
-    store.tasks.length, store.config.batch.window)
+  ctx.logger('lowtide').info('host half loaded (store: %d tasks, batch windows: %s)',
+    store.tasks.length, batchWindowList(store.config.batch).join(', '))
   // Diagnostic: confirm workspace registry and sessions are available.
   const hasRegistry = (ctx as any).workspaceRegistry !== undefined
   const hasSessions = (ctx as any).sessions !== undefined

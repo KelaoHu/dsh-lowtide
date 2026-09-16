@@ -178,7 +178,10 @@ export interface ReportTaskRow {
 export interface LowtideConfig {
   autonomy: Autonomy
   batch: {
+    /** Primary run window (mirrors `windows[0]` when the list is set). */
     window: string
+    /** Multiple run windows (issue #5); absent = single `window`. */
+    windows?: string[]
     tz?: string
     gateLeadMin: number
     maxTasksPerNight: number

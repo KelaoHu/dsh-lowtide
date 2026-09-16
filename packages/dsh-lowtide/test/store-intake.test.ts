@@ -94,6 +94,47 @@ describe('LowtideStore', () => {
     const reloaded = LowtideStore.load(file)
     expect(reloaded.tasks.map((t) => t.id)).toEqual(['t2'])
   })
+
+  test('multi-window config: windows patch mirrors window; window-only patch collapses the list (issue #5)', () => {
+    const dir = tempDir()
+    const file = join(dir, 'lowtide.json')
+    const store = LowtideStore.load(file)
+    // The windows list is authoritative; window mirrors its first entry.
+    let cfg = store.updateConfig({ batch: { windows: ['12:00-13:30', '19:00-23:30'] } })
+    expect(cfg.batch.windows).toEqual(['12:00-13:30', '19:00-23:30'])
+    expect(cfg.batch.window).toBe('12:00-13:30')
+    // Persists through save/load.
+    const reloaded = LowtideStore.load(file)
+    expect(reloaded.config.batch.windows).toEqual(['12:00-13:30', '19:00-23:30'])
+    expect(reloaded.config.batch.window).toBe('12:00-13:30')
+    // A window-only patch (legacy single-window writer) collapses the list.
+    cfg = reloaded.updateConfig({ batch: { window: '21:00-23:00' } })
+    expect(cfg.batch.window).toBe('21:00-23:00')
+    expect(cfg.batch.windows).toEqual(['21:00-23:00'])
+    // A patch touching neither (e.g. just paused) leaves both intact.
+    cfg = reloaded.updateConfig({ batch: { paused: true } })
+    expect(cfg.batch.window).toBe('21:00-23:00')
+    expect(cfg.batch.windows).toEqual(['21:00-23:00'])
+    expect(cfg.batch.paused).toBe(true)
+  })
+
+  test('pre-0.2.4 state (no batch.windows key) loads untouched', () => {
+    const dir = tempDir()
+    const file = join(dir, 'lowtide.json')
+    const store = LowtideStore.load(file)
+    store.addTask(sampleTask('t1'))
+    const reloaded = LowtideStore.load(file)
+    expect(reloaded.config.batch.window).toBe('19:00-23:30')
+    expect(reloaded.config.batch.windows).toBeUndefined()
+  })
+
+  test('strict batch schema: windows list accepted, bad shapes rejected', () => {
+    expect(configUpdateSchema.safeParse({ batch: { windows: ['12:00-13:30', '19:00-23:30'] } }).success).toBe(true)
+    expect(configUpdateSchema.safeParse({ batch: { windows: [] } }).success).toBe(false) // min 1
+    expect(configUpdateSchema.safeParse({ batch: { windows: ['12:00'] } }).success).toBe(false)
+    expect(configUpdateSchema.safeParse({ batch: { windows: ['25:00-26:00'] } }).success).toBe(false)
+    expect(configUpdateSchema.safeParse({ batch: { windows: ['01:00-02:00', '03:00-04:00', '05:00-06:00', '07:00-08:00', '09:00-10:00', '11:00-12:00', '13:00-14:00'] } }).success).toBe(false) // max 6
+  })
 })
 
 describe('report management (functional fixes: delete + history cap)', () => {

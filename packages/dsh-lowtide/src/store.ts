@@ -137,6 +137,8 @@ const windowSchema = z.object({
 
 const batchSchema = z.object({
   window: z.string(),
+  /** Multi-window list (issue #5); absent in pre-0.2.4 state files = [window]. */
+  windows: z.array(z.string()).optional(),
   tz: z.string().optional(),
   gateLeadMin: z.number(),
   maxTasksPerNight: z.number(),
@@ -160,6 +162,9 @@ const strictWindowSchema = windowSchema.extend({
 
 const strictBatchSchema = batchSchema.extend({
   window: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/, '窗口须为 HH:MM-HH:MM'),
+  windows: z.array(
+    z.string().regex(/^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$/, '窗口须为 HH:MM-HH:MM'),
+  ).min(1, '至少保留一个运行窗口').max(6, '运行窗口最多 6 个').optional(),
   tz: z.string().refine(isIanaTz, '非法时区').optional(),
   gateLeadMin: z.number().min(0).max(120),
   maxTasksPerNight: z.number().int().min(1),
@@ -195,6 +200,27 @@ export const configUpdateSchema = z.object({
 })
 
 export type ConfigUpdate = z.infer<typeof configUpdateSchema>
+
+/**
+ * Keep `batch.window` and `batch.windows` consistent (issue #5): a patch
+ * carrying `windows` is authoritative and mirrors its first entry into the
+ * legacy `window` field (so a downgrade keeps running window #1); a patch
+ * carrying only `window` (single-window client) collapses the list to it.
+ * Patches touching neither leave both untouched.
+ */
+function normalizeBatchWindows(
+  merged: LowtideConfig['batch'],
+  patch: NonNullable<ConfigUpdate['batch']>,
+): LowtideConfig['batch'] {
+  if (patch.windows !== undefined) {
+    const list = [...patch.windows]
+    return { ...merged, window: list[0] ?? merged.window, windows: list }
+  }
+  if (patch.window !== undefined) {
+    return { ...merged, windows: [patch.window] }
+  }
+  return merged
+}
 
 const stateSchema = z.object({
   version: z.literal(1),
@@ -424,7 +450,7 @@ export class LowtideStore {
         ...(patch.prices !== undefined ? { prices: patch.prices } : {}),
         batch: patch.batch === undefined
           ? this.state.config.batch
-          : { ...this.state.config.batch, ...patch.batch },
+          : normalizeBatchWindows({ ...this.state.config.batch, ...patch.batch }, patch.batch),
       }
       return this.state.config
     })

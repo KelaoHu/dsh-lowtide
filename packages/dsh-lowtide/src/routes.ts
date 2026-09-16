@@ -8,6 +8,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type {} from '@deepseek-ai/dsh-agent-default-model'
 import {
+  batchWindowList,
   digest,
   estimate,
   hasPriceEntry,
@@ -567,6 +568,18 @@ function validateConfigUpdate(patch: ConfigUpdate): string | null {
       return `运行窗口格式不对：${error instanceof Error ? error.message : String(error)}`
     }
   }
+  if (batch?.windows !== undefined) {
+    const seenRanges = new Set<string>()
+    for (const range of batch.windows) {
+      if (seenRanges.has(range)) return `运行窗口重复：${range}`
+      seenRanges.add(range)
+      try {
+        parseWindowRange(range)
+      } catch (error) {
+        return `运行窗口格式不对（${range}）：${error instanceof Error ? error.message : String(error)}`
+      }
+    }
+  }
   if (windows !== undefined) {
     const seen = new Set<string>()
     for (const window of windows) {
@@ -623,7 +636,7 @@ async function statePayload(ctx: Context, routes: Routes): Promise<Record<string
   const multiplier = match?.multiplier ?? 1
   const row: PriceRow = rowForLevel(tier, activeLevel, multiplier)
 
-  const nextBatch = nextBatchAt(now, { window: config.batch.window, tz: config.batch.tz, gateLeadMin: config.batch.gateLeadMin })
+  const nextBatch = nextBatchAt(now, config.batch)
   const nextOff = nextOffPeakStart(now, windows)
 
   // 时区人性化:官方忙时段换算到本机时钟(设置页展示 + 一键采用 + 漂移检测)。
@@ -683,6 +696,8 @@ async function statePayload(ctx: Context, routes: Routes): Promise<Record<string
     priceNotice: priceRouteNotice(modelId, now),
     batch: {
       window: config.batch.window,
+      /** Effective run-window list (multi-window, issue #5). */
+      windows: batchWindowList(config.batch),
       paused: config.batch.paused,
       running: scheduler.isRunning(),
       startedAt: scheduler.batchStartedAt()?.toISOString() ?? null,

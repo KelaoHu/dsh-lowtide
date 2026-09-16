@@ -7,7 +7,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { LowtideStore } from '../src/store.ts'
-import { currentWindowKey, inBatchWindow, recoverDeferred } from '../src/scheduler.ts'
+import { batchWindowEnd, currentWindowKey, inBatchWindow, recoverDeferred } from '../src/scheduler.ts'
 import type { Task } from 'lowtide-core'
 
 const TZ = 'Asia/Shanghai'
@@ -90,6 +90,52 @@ describe('currentWindowKey', () => {
 
   test('config change inside the window starts a new identity', () => {
     expect(currentWindowKey(at(20, 0), '19:00-23:30', TZ)).not.toBe(currentWindowKey(at(20, 0), '20:00-23:30', TZ))
+  })
+})
+
+describe('multi-window batch (issue #5)', () => {
+  const WINS = ['12:00-13:30', '19:00-23:30']
+
+  test('inBatchWindow: any covering window counts', () => {
+    expect(inBatchWindow(at(12, 30), WINS, TZ)).toBe(true)
+    expect(inBatchWindow(at(20, 0), WINS, TZ)).toBe(true)
+    expect(inBatchWindow(at(15, 0), WINS, TZ)).toBe(false)
+    // Legacy single-string signature unchanged.
+    expect(inBatchWindow(at(12, 30), '12:00-13:30', TZ)).toBe(true)
+  })
+
+  test('each window latches its own identity — noon and evening differ', () => {
+    const noon = currentWindowKey(at(12, 30), WINS, TZ)
+    const evening = currentWindowKey(at(20, 0), WINS, TZ)
+    expect(noon).not.toBeNull()
+    expect(evening).not.toBeNull()
+    expect(noon).not.toBe(evening)
+    // Same window, same day → stable key (the once-per-window latch).
+    expect(currentWindowKey(at(13, 0), WINS, TZ)).toBe(noon)
+    // Next day's noon window is a fresh identity.
+    expect(currentWindowKey(at(12, 30, 21), WINS, TZ)).not.toBe(noon)
+    // Between windows → null (latch clears, next window may run).
+    expect(currentWindowKey(at(15, 0), WINS, TZ)).toBeNull()
+  })
+
+  test('batchWindowEnd follows the ACTIVE window', () => {
+    // Inside the noon window the end is 13:30 today; inside the evening
+    // window it is 23:30 today.
+    expect(batchWindowEnd(at(12, 30), WINS, TZ).getTime()).toBe(at(13, 30).getTime())
+    expect(batchWindowEnd(at(20, 0), WINS, TZ).getTime()).toBe(at(23, 30).getTime())
+    // Legacy single-string signature unchanged.
+    expect(batchWindowEnd(at(20, 0), '19:00-23:30', TZ).getTime()).toBe(at(23, 30).getTime())
+  })
+
+  test('overlapping windows: the first covering range owns the latch', () => {
+    const overlap = ['12:00-14:00', '13:00-15:00']
+    const keyA = currentWindowKey(at(12, 30), overlap, TZ)
+    const keyInside = currentWindowKey(at(13, 30), overlap, TZ)
+    expect(keyA).not.toBeNull()
+    expect(keyInside).toBe(keyA) // first-in-list wins while both cover now
+    const keyB = currentWindowKey(at(14, 30), overlap, TZ)
+    expect(keyB).not.toBeNull()
+    expect(keyB).not.toBe(keyA) // past 14:00 only the second window covers
   })
 })
 

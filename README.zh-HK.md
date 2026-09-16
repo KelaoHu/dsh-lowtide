@@ -181,7 +181,8 @@ pnpm --filter dsh-lowtide dev
 | 欄位 | 類型 | 默認 | 說明 |
 |---|---|---|---|
 | `autonomy` | `'l1'\|'l2'\|'l3'` | `l2` | 自治三檔；工單裡可單任務覆寫 |
-| `batch.window` | `"HH:MM-HH:MM"` | `19:00-23:30` | 閒時運行視窗（本地時區） |
+| `batch.window` | `"HH:MM-HH:MM"` | `19:00-23:30` | 閒時運行視窗（本地時區）；鏡像 `batch.windows[0]` |
+| `batch.windows` | `"HH:MM-HH:MM"` 陣列 | — | 多個運行視窗（1–6 個），每個視窗每天各開跑一批；缺省 = 單個 `batch.window` |
 | `batch.tz` | IANA 時區 | 系統時區 | 運行視窗時區（留空=本地） |
 | `batch.gateLeadMin` | 分鐘 | `30` | 批次確認門提前量 |
 | `batch.maxTasksPerNight` | 數字 | `10` | 每批任務上限 |
@@ -270,7 +271,7 @@ pnpm --filter dsh-lowtide exec playwright test   # e2e（需 dsh web 在 3080 �
 - 當前是發布候選（v0.2.2）；e2e 需要真實 dsh web 實例。
 - 默認批量模型 `deepseek-flash`；非官方模型沒公開價目，帳本標「價格未知」，可在設定頁手動補。
 - 單任務最長 240 分鐘，超時取消重試一次。
-- 路線圖候選：多視窗多批次、任務依賴圖、預算自動分攤、報告推送（郵件/Webhook）、價格波動提醒。
+- 路線圖候選：任務依賴圖、預算自動分攤、報告推送（郵件/Webhook）、價格波動提醒。
 
 ## 目錄結構
 

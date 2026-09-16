@@ -185,6 +185,7 @@ Dopo apri dsh: dovresti vedere la pillola del prezzo nell'intestazione della ses
 |---|---|---|---|
 | `autonomy` | `'l1'\|'l2'\|'l3'` | `l2` | Livello di autonomia; override per attività nel modale dei ticket |
 | `batch.window` | `"HH:MM-HH:MM"` | `19:00-23:30` | Finestra di esecuzione in valle (fuso locale) |
+| `batch.windows` | `"HH:MM-HH:MM"`[] | — | Più finestre di esecuzione (1–6); ciascuna esegue un batch al giorno. Assente = la singola `batch.window` |
 | `batch.tz` | fuso IANA | sistema | Fuso della finestra di esecuzione (vuoto = locale) |
 | `batch.gateLeadMin` | minuti | `30` | Anticipo del cancello del lotto |
 | `batch.maxTasksPerNight` | numero | `10` | Limite attività per lotto |

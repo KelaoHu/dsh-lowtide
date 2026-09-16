@@ -57,7 +57,7 @@ export interface HostState {
   officialInLocal: Array<{ label: string; start: string; end: string; crossesDay: boolean }>
   /** True when the saved windows drifted from the official schedule. */
   officialDrift?: boolean
-  batch: { window: string; paused: boolean; running: boolean; startedAt: string | null; maxConcurrency: number }
+  batch: { window: string; windows?: string[]; paused: boolean; running: boolean; startedAt: string | null; maxConcurrency: number }
   queue: { total: number; pendingReview: number; queued: number; running: number }
   gate: { windowStartAt: number; pendingReview: number } | null
   digest: {

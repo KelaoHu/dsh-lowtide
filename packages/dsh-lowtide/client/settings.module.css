@@ -105,6 +105,44 @@
   line-height: 1.5;
 }
 
+/* Multi run-window editor (issue #5). The editor owns a FULL grid row: one
+ * row is ~316px wide while a `.grid` cell is minmax(200px, 1fr), and grid
+ * items do not clip — inside a narrow cell the row spilled over the
+ * neighbouring field (text overlap, delete button covering the column). */
+.batchWindowField {
+  grid-column: 1 / -1;
+}
+
+.batchWindowRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+
+.batchWindowRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* Shrinkable/wrappable inputs, 36px tall to line up with the md Button in
+ * the same row (was a fixed 120px that could neither shrink nor wrap). */
+.batchWindowRow .input {
+  width: auto;
+  flex: 0 1 132px;
+  height: 36px;
+}
+
+.batchWindowDash {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.batchWindowActions {
+  margin-top: 8px;
+}
+
 .input {
   box-sizing: border-box;
   width: 100%;

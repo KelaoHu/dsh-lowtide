@@ -605,8 +605,10 @@ export function assembleReportRows(
  * concurrency (`batch.maxConcurrency`, default 3). Stops launching new tasks
  * past windowEndAt but never interrupts a running task (PLAN §7.2). Returns
  * null when nothing executed — no empty execution reports (review round 1, B2).
+ * `windowLabel` is the run window that triggered this batch (multi-window,
+ * issue #5); absent = the first configured window, matching legacy reports.
  */
-export async function runBatch(ctx: Context, store: LowtideStore, windowEndAt: Date, forced = false): Promise<MorningReport | null> {
+export async function runBatch(ctx: Context, store: LowtideStore, windowEndAt: Date, forced = false, windowLabel?: string): Promise<MorningReport | null> {
   const startedAt = new Date()
   const queue = [...store.tasks]
     .filter((t) => t.status === 'queued')
@@ -648,7 +650,7 @@ export async function runBatch(ctx: Context, store: LowtideStore, windowEndAt: D
   const report: MorningReport = {
     id: `rpt-${Date.now()}`,
     date: localDateKey(new Date()),
-    window: store.config.batch.window,
+    window: windowLabel ?? store.config.batch.window,
     startedAt: startedAt.toISOString(),
     finishedAt: new Date().toISOString(),
     tasks: rows,

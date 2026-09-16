@@ -41,9 +41,15 @@ interface PriceTierDraft {
   off: PriceRowDraft
 }
 
-interface Draft {
+/** One run-window row in the batch editor (multi-window, issue #5). */
+interface BatchWindowDraft {
   start: string
   end: string
+}
+
+interface Draft {
+  /** Run windows (1–6); saved as batch.windows with window = first entry. */
+  batchWindows: BatchWindowDraft[]
   tz: string
   paused: boolean
   gateLeadMin: string
@@ -74,6 +80,33 @@ function minutesOf(hhmm: string): number {
   const m = Number(match[2])
   if (h > 23 || m > 59) return Number.NaN
   return h * 60 + m
+}
+
+/** Half-open minute intervals of a window on the [0, 2880) axis (a
+ *  midnight-crossing range unwraps past 1440; start === end = full day). */
+function rangeIntervals(start: number, end: number): Array<[number, number]> {
+  if (end > start) return [[start, end]]
+  if (end < start) return [[start, end + 1440]]
+  return [[0, 1440]]
+}
+
+/** Whether two "HH:MM"-"HH:MM" drafts overlap (for the non-blocking hint). */
+function batchWindowsOverlap(list: BatchWindowDraft[]): boolean {
+  const intervals: Array<[number, number]> = []
+  for (const w of list) {
+    const start = minutesOf(w.start)
+    const end = minutesOf(w.end)
+    if (Number.isNaN(start) || Number.isNaN(end)) continue
+    intervals.push(...rangeIntervals(start, end))
+  }
+  for (let i = 0; i < intervals.length; i++) {
+    for (let j = i + 1; j < intervals.length; j++) {
+      const [a0, a1] = intervals[i]
+      const [b0, b1] = intervals[j]
+      if (a0 < b1 && b0 < a1) return true
+    }
+  }
+  return false
 }
 
 /** 当前本地时区的 UTC 偏移标签,如 "UTC+8" / "UTC-5"。 */
@@ -178,7 +211,15 @@ export function LowtideSettings({ t }: SettingsSectionOwnerProps & { t: NsTransl
       }
       const c = res.config as Record<string, any>
       const batch = (c.batch ?? {}) as Record<string, any>
-      const [start, end] = String(batch.window ?? '19:00-23:30').split('-')
+      // Multi-window (issue #5): batch.windows is authoritative; pre-0.2.4
+      // configs carry only the single batch.window string.
+      const rawRanges: unknown[] = Array.isArray(batch.windows) && batch.windows.length > 0
+        ? batch.windows
+        : [batch.window ?? '19:00-23:30']
+      const batchWindows: BatchWindowDraft[] = rawRanges.map((w) => {
+        const [s, e] = String(w).split('-')
+        return { start: s ?? '19:00', end: e ?? '23:30' }
+      })
       const prices: Record<string, PriceTierDraft> = {}
       if (c.prices !== undefined && typeof c.prices === 'object') {
         for (const [model, tier] of Object.entries(c.prices as Record<string, any>)) {
@@ -197,8 +238,7 @@ export function LowtideSettings({ t }: SettingsSectionOwnerProps & { t: NsTransl
         }
       }
       setDraft({
-        start: start ?? '19:00',
-        end: end ?? '23:30',
+        batchWindows,
         tz: typeof batch.tz === 'string' ? batch.tz : '',
         paused: batch.paused === true,
         gateLeadMin: String(typeof batch.gateLeadMin === 'number' ? batch.gateLeadMin : 30),
@@ -244,6 +284,13 @@ export function LowtideSettings({ t }: SettingsSectionOwnerProps & { t: NsTransl
     setDraft((d) => (d === null ? d : {
       ...d,
       windows: d.windows.map((w, i) => (i === index ? { ...w, ...patch } : w)),
+    }))
+  }
+
+  function setBatchWindow(index: number, patch: Partial<BatchWindowDraft>): void {
+    setDraft((d) => (d === null ? d : {
+      ...d,
+      batchWindows: d.batchWindows.map((w, i) => (i === index ? { ...w, ...patch } : w)),
     }))
   }
 
@@ -297,8 +344,7 @@ export function LowtideSettings({ t }: SettingsSectionOwnerProps & { t: NsTransl
   function restoreDefaults(): void {
     setDraft((d) => (d === null ? d : {
       ...d,
-      start: '19:00',
-      end: '23:30',
+      batchWindows: [{ start: '19:00', end: '23:30' }],
       tz: '',
       paused: false,
       gateLeadMin: '30',
@@ -335,6 +381,15 @@ export function LowtideSettings({ t }: SettingsSectionOwnerProps & { t: NsTransl
   const save = async (): Promise<void> => {
     setSaving(true)
     setError(null)
+    // Multi-window (issue #5): every row must be a complete HH:MM pair;
+    // exact duplicates are merged silently (the overlap hint is non-blocking).
+    const batchRanges = [...new Set(draft.batchWindows.map((w) => `${w.start}-${w.end}`))]
+    if (batchRanges.length === 0
+      || draft.batchWindows.some((w) => Number.isNaN(minutesOf(w.start)) || Number.isNaN(minutesOf(w.end)))) {
+      setSaving(false)
+      setError(t('settings.batchWindowInvalid'))
+      return
+    }
     const daysOf = (s: string): number[] | undefined => {
       const days = s.split(',').map((x) => Number(x.trim()))
         .filter((n) => Number.isInteger(n) && n >= 1 && n <= 7)
@@ -371,7 +426,8 @@ export function LowtideSettings({ t }: SettingsSectionOwnerProps & { t: NsTransl
     }
     const patch = {
       batch: {
-        window: `${draft.start}-${draft.end}`,
+        window: batchRanges[0] ?? '19:00-23:30',
+        windows: batchRanges,
         ...(draft.tz.trim() !== '' ? { tz: draft.tz.trim() } : {}),
         gateLeadMin: Math.max(Number(draft.gateLeadMin) || 0, 0),
         maxTasksPerNight: Math.max(Number(draft.maxTasksPerNight) || 1, 1),
@@ -430,12 +486,39 @@ export function LowtideSettings({ t }: SettingsSectionOwnerProps & { t: NsTransl
       <section className={styles.section}>
         <h3 className={styles.sectionTitle}>{t('settings.batchTitle')}</h3>
         <div className={styles.grid}>
-          <label className={styles.field}>{t('settings.start')}
-            <input type="time" className={styles.input} value={draft.start} onChange={(e) => set('start', e.target.value)} />
-          </label>
-          <label className={styles.field}>{t('settings.end')}
-            <input type="time" className={styles.input} value={draft.end} onChange={(e) => set('end', e.target.value)} />
-          </label>
+          <div className={`${styles.field} ${styles.batchWindowField}`}>
+            <span className={styles.fieldLabel}>{t('settings.batchWindowList')}</span>
+            {draft.batchWindows.map((w, i) => (
+              <div key={i} className={styles.batchWindowRow}>
+                <input type="time" className={styles.input} aria-label={t('settings.start')} value={w.start} onChange={(e) => setBatchWindow(i, { start: e.target.value })} />
+                <span className={styles.batchWindowDash}>–</span>
+                <input type="time" className={styles.input} aria-label={t('settings.end')} value={w.end} onChange={(e) => setBatchWindow(i, { end: e.target.value })} />
+                <Button
+                  variant="ghost"
+                  size="md"
+                  disabled={draft.batchWindows.length <= 1}
+                  title={draft.batchWindows.length <= 1 ? t('settings.batchWindowMin') : undefined}
+                  onClick={() => set('batchWindows', draft.batchWindows.filter((_, idx) => idx !== i))}
+                >
+                  {t('settings.windowDelete')}
+                </Button>
+              </div>
+            ))}
+            <div className={styles.batchWindowActions}>
+              <Button
+                variant="outline"
+                size="md"
+                disabled={draft.batchWindows.length >= 6}
+                onClick={() => set('batchWindows', [...draft.batchWindows, { start: '22:00', end: '23:30' }])}
+              >
+                {t('settings.addBatchWindow')}
+              </Button>
+            </div>
+            <span className={styles.strategyHint}>{t('settings.batchWindowsHint')}</span>
+            {batchWindowsOverlap(draft.batchWindows) && (
+              <span className={styles.strategyHint}>{t('settings.batchWindowOverlap')}</span>
+            )}
+          </div>
           <label className={styles.field}>{t('settings.tz')}
             <input type="text" className={styles.input} value={draft.tz} onChange={(e) => set('tz', e.target.value)} placeholder={meta?.systemTz ?? 'Asia/Shanghai'} />
           </label>

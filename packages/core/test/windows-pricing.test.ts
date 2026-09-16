@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { addDaysInTz, dayStartInTz, levelAt, localParts, minutesUntil, nextBatchAt, nextLevelChangeAt, nextOffPeakStart, systemTimeZone, windowsInTz } from '../src/windows.ts'
+import { addDaysInTz, batchWindowList, dayStartInTz, levelAt, localParts, minutesUntil, nextBatchAt, nextLevelChangeAt, nextOffPeakStart, systemTimeZone, windowsInTz } from '../src/windows.ts'
 import { OFFICIAL_EFFECTIVE_FROM, OFFICIAL_PEAK_WINDOWS, cost, costAtRow, hasPriceEntry, OFFICIAL_PRICES, estimate, priceRouteNotice, resolvePriceModel, rowForLevel, tierFor } from '../src/pricing.ts'
 import { defaultConfig } from '../src/model.ts'
 
@@ -115,6 +115,45 @@ describe('windows.nextOffPeakStart / nextBatchAt / minutesUntil', () => {
     expect(minutesUntil(morning, nextBatchAt(morning, batch))).toBe(600)
     const late = beijingTime(23, 0)
     expect(minutesUntil(late, nextBatchAt(late, batch))).toBe(20 * 60)
+  })
+})
+
+describe('windows.nextBatchAt multi-window (issue #5) + batchWindowList', () => {
+  const batch = { window: '19:00-23:30', windows: ['19:00-23:30', '12:00-13:30'], tz: 'Asia/Shanghai', gateLeadMin: 30 }
+
+  test('batchWindowList: absent/empty falls back to [window], list wins otherwise', () => {
+    expect(batchWindowList({ window: '19:00-23:30', gateLeadMin: 30 })).toEqual(['19:00-23:30'])
+    expect(batchWindowList({ window: '19:00-23:30', windows: [], gateLeadMin: 30 })).toEqual(['19:00-23:30'])
+    expect(batchWindowList(batch)).toEqual(['19:00-23:30', '12:00-13:30'])
+  })
+
+  test('morning → the noon window is next, not the evening one', () => {
+    const at9 = beijingTime(9)
+    expect(minutesUntil(at9, nextBatchAt(at9, batch))).toBe(3 * 60)
+  })
+
+  test('between windows → the evening window is next', () => {
+    const at15 = beijingTime(15)
+    expect(minutesUntil(at15, nextBatchAt(at15, batch))).toBe(4 * 60)
+  })
+
+  test('after the last window → tomorrow\'s earliest window', () => {
+    const at20 = beijingTime(20)
+    expect(minutesUntil(at20, nextBatchAt(at20, batch))).toBe(16 * 60)
+  })
+
+  test('midnight-crossing window in the list participates', () => {
+    const nightBatch = { window: '22:00-02:00', windows: ['22:00-02:00', '12:00-13:00'], tz: 'Asia/Shanghai', gateLeadMin: 30 }
+    const at23 = beijingTime(23)
+    expect(minutesUntil(at23, nextBatchAt(at23, nightBatch))).toBe(13 * 60)
+    const at3 = beijingTime(3)
+    expect(minutesUntil(at3, nextBatchAt(at3, nightBatch))).toBe(9 * 60)
+  })
+
+  test('legacy single window (no windows field) — unchanged behavior', () => {
+    const legacy = { window: '19:00-23:30', tz: 'Asia/Shanghai', gateLeadMin: 30 }
+    const at20 = beijingTime(20)
+    expect(minutesUntil(at20, nextBatchAt(at20, legacy))).toBe(23 * 60)
   })
 })
 

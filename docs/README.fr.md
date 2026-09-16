@@ -185,6 +185,7 @@ Ouvrez dsh ensuite : vous devriez voir la pilule de prix dans l'en-tête de sess
 |---|---|---|---|
 | `autonomy` | `'l1'\|'l2'\|'l3'` | `l2` | Niveau d'autonomie ; dérogation par tâche dans la fenêtre modale |
 | `batch.window` | `"HH:MM-HH:MM"` | `19:00-23:30` | Fenêtre d'exécution en creux (fuseau local) |
+| `batch.windows` | `"HH:MM-HH:MM"`[] | — | Plusieurs fenêtres d'exécution (1–6) ; chacune lance un lot par jour. Absente = la seule `batch.window` |
 | `batch.tz` | fuseau IANA | système | Fuseau de la fenêtre d'exécution (vide = local) |
 | `batch.gateLeadMin` | minutes | `30` | Anticipation de la porte du lot |
 | `batch.maxTasksPerNight` | nombre | `10` | Plafond de tâches par lot |

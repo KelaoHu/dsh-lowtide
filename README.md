@@ -183,7 +183,8 @@ Open dsh afterwards: you should see the price pill in the session header and the
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `autonomy` | `'l1'\|'l2'\|'l3'` | `l2` | Autonomy level; per-task override in the ticket modal |
-| `batch.window` | `"HH:MM-HH:MM"` | `19:00-23:30` | Off-peak run window (local timezone) |
+| `batch.window` | `"HH:MM-HH:MM"` | `19:00-23:30` | Off-peak run window (local timezone); mirrors `batch.windows[0]` |
+| `batch.windows` | `"HH:MM-HH:MM"`[] | — | Multiple run windows (1–6); each runs one batch per day. Absent = the single `batch.window` |
 | `batch.tz` | IANA timezone | system | Run-window timezone (empty = local) |
 | `batch.gateLeadMin` | minutes | `30` | Batch gate lead time |
 | `batch.maxTasksPerNight` | number | `10` | Tasks per batch cap |
@@ -272,7 +273,7 @@ Preflight failed: workspace gone, git snapshot moved, a locked file changed, bud
 - Release candidate (v0.2.2); e2e needs a live dsh web instance.
 - Default batch model is `deepseek-flash`; non-official models have no public price table — the ledger marks them "price unknown", fillable in settings.
 - Per-task cap is 240 minutes; timeout cancels and retries once.
-- Roadmap candidates: multi-window multi-batch, task dependency graphs, automatic budget split, report push (email/Webhook), price-change alerts.
+- Roadmap candidates: task dependency graphs, automatic budget split, report push (email/Webhook), price-change alerts.
 
 ## Repository layout
 

@@ -181,7 +181,8 @@ pnpm --filter dsh-lowtide dev
 | 字段 | 类型 | 默认 | 说明 |
 |---|---|---|---|
 | `autonomy` | `'l1'\|'l2'\|'l3'` | `l2` | 自治三档；工单里可单任务覆盖 |
-| `batch.window` | `"HH:MM-HH:MM"` | `19:00-23:30` | 闲时运行窗口（本地时区） |
+| `batch.window` | `"HH:MM-HH:MM"` | `19:00-23:30` | 闲时运行窗口（本地时区）；镜像 `batch.windows[0]` |
+| `batch.windows` | `"HH:MM-HH:MM"` 数组 | — | 多个运行窗口（1–6 个），每个窗口每天各开跑一批；缺省 = 单个 `batch.window` |
 | `batch.tz` | IANA 时区 | 系统时区 | 运行窗口时区（留空=本地） |
 | `batch.gateLeadMin` | 分钟 | `30` | 批次确认门提前量 |
 | `batch.maxTasksPerNight` | 数字 | `10` | 每批任务上限 |
@@ -270,7 +271,7 @@ pnpm --filter dsh-lowtide exec playwright test   # e2e（需 dsh web 在 3080 �
 - 当前是发布候选（v0.2.2）；e2e 需要真实 dsh web 实例。
 - 默认批量模型 `deepseek-flash`；非官方模型没公开价目，账本标“价格未知”，可在设置页手动补。
 - 单任务最长 240 分钟，超时取消重试一次。
-- 路线图候选：多窗口多批次、任务依赖图、预算自动分摊、报告推送（邮件/Webhook）、价格波动提醒。
+- 路线图候选：任务依赖图、预算自动分摊、报告推送（邮件/Webhook）、价格波动提醒。
 
 ## 目录结构
 

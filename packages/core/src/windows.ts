@@ -26,11 +26,20 @@ export interface WindowCfg {
 }
 
 export interface BatchCfg {
-  /** Local "HH:MM-HH:MM" window, e.g. "19:00-23:30", interpreted in `tz`. */
+  /** Local "HH:MM-HH:MM" window, e.g. "19:00-23:30", interpreted in `tz`.
+   *  When `windows` is set this mirrors its first entry (legacy field kept
+   *  so a downgrade to a single-window version keeps running window #1). */
   window: string
+  /** Multiple run windows (issue #5); absent = single `window`. 1–6 ranges. */
+  windows?: string[]
   tz?: string
   /** Lead minutes for the evening confirm gate. */
   gateLeadMin: number
+}
+
+/** The effective run-window list: `windows` when non-empty, else `[window]`. */
+export function batchWindowList(batch: BatchCfg): string[] {
+  return batch.windows !== undefined && batch.windows.length > 0 ? [...batch.windows] : [batch.window]
 }
 
 export interface LevelMatch {
@@ -220,15 +229,24 @@ export function nextLevelChangeAt(when: Date, windows: WindowCfg[], defaultTz = 
   return best
 }
 
-/** Next batch start from a "HH:MM-HH:MM" window (local time in batch tz). */
+/**
+ * Next batch start across the configured run window(s) (local time in batch
+ * tz). With multiple windows (issue #5) the earliest upcoming start wins —
+ * that is the moment the countdown and the confirm gate point at.
+ */
 export function nextBatchAt(now: Date, batch: BatchCfg, defaultTz = systemTimeZone()): Date {
-  const { start } = parseWindowRange(batch.window)
   const tz = batch.tz ?? defaultTz
-  let target = new Date(dayStartInTz(now, tz).getTime() + start * 60_000)
-  if (target.getTime() <= now.getTime()) {
-    target = new Date(addDaysInTz(now, tz, 1).getTime() + start * 60_000)
+  let best: Date | null = null
+  for (const range of batchWindowList(batch)) {
+    const { start } = parseWindowRange(range)
+    let target = new Date(dayStartInTz(now, tz).getTime() + start * 60_000)
+    if (target.getTime() <= now.getTime()) {
+      target = new Date(addDaysInTz(now, tz, 1).getTime() + start * 60_000)
+    }
+    if (best === null || target.getTime() < best.getTime()) best = target
   }
-  return target
+  // batchWindowList never yields an empty list, so `best` is always set.
+  return best as Date
 }
 
 /** Whether an estimated task duration fits the remaining off-peak minutes. */

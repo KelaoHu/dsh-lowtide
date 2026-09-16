@@ -185,6 +185,7 @@ Abre dsh después: deberías ver la píldora de precio en la cabecera de la sesi
 |---|---|---|---|
 | `autonomy` | `'l1'\|'l2'\|'l3'` | `l2` | Nivel de autonomía; anulación por tarea en el modal de tickets |
 | `batch.window` | `"HH:MM-HH:MM"` | `19:00-23:30` | Ventana de ejecución fuera de horas punta (zona horaria local) |
+| `batch.windows` | `"HH:MM-HH:MM"`[] | — | Varias ventanas de ejecución (1–6); cada una ejecuta un lote al día. Ausente = la única `batch.window` |
 | `batch.tz` | zona IANA | sistema | Zona horaria de la ventana de ejecución (vacío = local) |
 | `batch.gateLeadMin` | minutos | `30` | Antelación de la compuerta del lote |
 | `batch.maxTasksPerNight` | número | `10` | Límite de tareas por lote |

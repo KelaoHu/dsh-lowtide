@@ -185,6 +185,7 @@ pnpm --filter dsh-lowtide dev
 |---|---|---|---|
 | `autonomy` | `'l1'\|'l2'\|'l3'` | `l2` | Autonomiestufe; Übersteuerung pro Aufgabe im Ticket-Modal |
 | `batch.window` | `"HH:MM-HH:MM"` | `19:00-23:30` | Ausführungsfenster für Nebenzeiten (lokale Zeitzone) |
+| `batch.windows` | `"HH:MM-HH:MM"`[] | — | Mehrere Ausführungsfenster (1–6); jedes startet einmal täglich einen Batch. Fehlt = das einzelne `batch.window` |
 | `batch.tz` | IANA-Zeitzone | System | Zeitzone des Ausführungsfensters (leer = lokal) |
 | `batch.gateLeadMin` | Minuten | `30` | Vorlaufzeit des Stapel-Tors |
 | `batch.maxTasksPerNight` | Zahl | `10` | Obergrenze Aufgaben pro Stapel |
