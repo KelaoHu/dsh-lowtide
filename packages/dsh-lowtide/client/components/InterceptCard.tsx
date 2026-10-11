@@ -20,7 +20,8 @@
 import { useEffect, useState } from 'react'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { ComposerChainProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
-import { Button, IconCloseOutline16, IconQueueOutline14, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Icon } from '../lib/icons.tsx'
 import { dismissPeakToday, estimate, rememberWorkspace, submitTask, lastWorkspace } from '../api.ts'
 import { lowtideStore, refreshNow, showToast, useLowtide } from '../store.ts'
 import { dismissInterceptSession, isInterceptSessionDismissed, readInterceptDraft } from '../hooks/useInterceptDraft.ts'
@@ -174,7 +175,7 @@ export function InterceptCard(props: InterceptCardProps): React.JSX.Element {
           {t('intercept.title', { tier: tierText, window: peakWindow })}
         </span>
         <button type="button" className={styles.close} title={t('intercept.closeTitle')} onClick={closeAndKeepDraft}>
-          <IconCloseOutline16 />
+          <Icon name="IconCloseOutline16" />
         </button>
       </div>
       <TaskForm variant="intercept" t={t} values={formValues} onChange={onFormChange} />
@@ -193,7 +194,7 @@ export function InterceptCard(props: InterceptCardProps): React.JSX.Element {
       </div>
       {host !== null && host !== undefined && (
         <div className={styles.queueStatus}>
-          <IconQueueOutline14 className={styles.queueIcon} />
+          <Icon name="IconQueueOutline14" className={styles.queueIcon} />
           {t('intercept.queueStatus', { total: host.queue.total, pending: host.queue.pendingReview })}
         </div>
       )}

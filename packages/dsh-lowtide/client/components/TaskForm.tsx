@@ -18,7 +18,8 @@
  */
 import type { ReactElement } from 'react'
 import { useMemo } from 'react'
-import { Button, IconPaperclipOutline16, IconSettingsOutline14, IconThinkOutline14, IconWarningOutline16, Modal, Pill, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Modal, Pill, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Icon } from '../lib/icons.tsx'
 import { type NsKey, type NsTranslate } from '../i18n.ts'
 import styles from './TaskForm.module.css'
 
@@ -206,7 +207,7 @@ export function TaskForm(props: {
         </div>
         {values.workspace.trim() === '' && (
           <div className={styles.warning}>
-            <IconWarningOutline16 className={styles.warningIcon} />
+            <Icon name="IconWarningOutline16" className={styles.warningIcon} />
             {t('intercept.workspaceWarning')}
           </div>
         )}
@@ -343,7 +344,7 @@ export function TaskForm(props: {
       {props.onAdvancedOpenChange !== undefined && (
         <>
           <button type="button" className={styles.advancedBtn} onClick={() => props.onAdvancedOpenChange?.(true)}>
-            <IconSettingsOutline14 />
+            <Icon name="IconSettingsOutline14" />
             {t('modal.advanced')}
           </button>
           <Modal
@@ -446,7 +447,7 @@ export function TaskForm(props: {
                 <span className={styles.strategyHint}>{t('modal.modelHint')}</span>
               </div>
               <div className={styles.field}>
-                <span className={styles.fieldLabel}><IconThinkOutline14 className={styles.advancedIcon} />{t('modal.reasoning')}</span>
+                <span className={styles.fieldLabel}><Icon name="IconThinkOutline14" className={styles.advancedIcon} />{t('modal.reasoning')}</span>
                 <div className={styles.pillRow}>
                   <Pill active={values.reasoning === 'follow'} onClick={() => onChange({ reasoning: 'follow' })}>
                     {t('reasoning.follow')}
@@ -542,7 +543,7 @@ export function TaskForm(props: {
                 </div>
               )}
               <div className={styles.field}>
-                <span className={styles.fieldLabel}><IconPaperclipOutline16 className={styles.advancedIcon} />{t('modal.files')}</span>
+                <span className={styles.fieldLabel}><Icon name="IconPaperclipOutline16" className={styles.advancedIcon} />{t('modal.files')}</span>
                 <input className={styles.fieldInput} value={values.files} onChange={(e) => onChange({ files: e.target.value })} placeholder={t('modal.filesPlaceholder')} />
                 <span className={styles.strategyHint}>{t('modal.filesAdvancedHint')}</span>
               </div>

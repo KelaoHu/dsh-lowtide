@@ -2,8 +2,9 @@
  * DroppedRow (Phase D split): a soft-deleted task inside the 已放弃 section,
  * with 恢复 (back to review) and 彻底删除 actions.
  */
-import { IconRefreshOutline16, IconTrashOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+
 import { deleteTask, restoreTask } from '../api.ts'
+import { Icon } from '../lib/icons.tsx'
 import { refreshNow, showToast, type HostTask } from '../store.ts'
 import { type NsTranslate } from '../i18n.ts'
 import { statusLabel } from '../lib/taskMeta.ts'
@@ -23,7 +24,7 @@ export function DroppedRow({ task, t }: { task: HostTask; t: NsTranslate }): Rea
           title={t('action.restore')}
           onClick={() => { void restoreTask(task.id).then(() => { showToast(t('toast.restored')); refreshNow() }) }}
         >
-          <IconRefreshOutline16 />
+          <Icon name="IconRefreshOutline16" />
         </button>
         <button
           type="button"
@@ -31,7 +32,7 @@ export function DroppedRow({ task, t }: { task: HostTask; t: NsTranslate }): Rea
           title={t('action.delete')}
           onClick={() => { void deleteTask(task.id).then(() => { showToast(t('toast.deleted')); refreshNow() }) }}
         >
-          <IconTrashOutline16 />
+          <Icon name="IconTrashOutline16" />
         </button>
       </div>
     </div>

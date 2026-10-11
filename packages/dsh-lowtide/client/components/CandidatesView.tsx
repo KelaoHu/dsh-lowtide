@@ -5,7 +5,8 @@
  * task detail modal and the execution report.
  */
 import { useState } from 'react'
-import { Button, IconChevronDownOutline14, IconChevronUpOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Icon } from '../lib/icons.tsx'
 import { chooseCandidate } from '../api.ts'
 import { refreshNow, showToast, type HostCandidate } from '../store.ts'
 import { type NsTranslate } from '../i18n.ts'
@@ -23,7 +24,7 @@ export function CandidatesView({ candidates, chosenIndex, taskId, t }: {
   return (
     <div className={styles.wrap}>
       <button type="button" className={styles.toggle} onClick={() => setOpen(!open)}>
-        {open ? <IconChevronDownOutline14 /> : <IconChevronUpOutline14 />}
+        {open ? <Icon name="IconChevronDownOutline14" /> : <Icon name="IconChevronUpOutline14" />}
         {t('report.candidates', { count: candidates.length })}
       </button>
       {open && candidates.map((c, i) => {

@@ -4,7 +4,8 @@
  * bar by status. Shared by the 待执行 and 已结束 sections.
  */
 import { useState } from 'react'
-import { IconCheckOutline16, IconCloseOutline16, IconEditOutline16, IconPauseOutline16, IconRefreshOutline16, IconTrashOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Icon } from '../lib/icons.tsx'
+
 import { deleteTask, retryTask, triage } from '../api.ts'
 import { refreshNow, showToast, type HostTask } from '../store.ts'
 import { type NsTranslate } from '../i18n.ts'
@@ -22,12 +23,12 @@ function statusClass(status: string): string {
 
 /** Icons for the per-row actions (16px outline set, currentColor). */
 function RowActionIcon({ kind }: { kind: 'approve' | 'defer' | 'drop' | 'retry' | 'delete' | 'edit' }): React.JSX.Element {
-  if (kind === 'approve') return <IconCheckOutline16 />
-  if (kind === 'defer') return <IconPauseOutline16 />
-  if (kind === 'drop') return <IconCloseOutline16 />
-  if (kind === 'retry') return <IconRefreshOutline16 />
-  if (kind === 'edit') return <IconEditOutline16 />
-  return <IconTrashOutline16 />
+  if (kind === 'approve') return <Icon name="IconCheckOutline16" />
+  if (kind === 'defer') return <Icon name="IconPauseOutline16" />
+  if (kind === 'drop') return <Icon name="IconCloseOutline16" />
+  if (kind === 'retry') return <Icon name="IconRefreshOutline16" />
+  if (kind === 'edit') return <Icon name="IconEditOutline16" />
+  return <Icon name="IconTrashOutline16" />
 }
 
 export function TaskRow({ task, t, onOpenDetail, onEdit }: {

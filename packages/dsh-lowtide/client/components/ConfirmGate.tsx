@@ -8,7 +8,8 @@
  * after 30 minutes of no action and unreleased tasks never run.
  */
 import { useEffect, useRef, useState } from 'react'
-import { Button, IconCloseOutline16 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Icon } from '../lib/icons.tsx'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { approveAll, triage } from '../api.ts'
 import { lowtideStore, refreshNow, showToast, useLowtide, type HostTask } from '../store.ts'
@@ -74,7 +75,7 @@ export function ConfirmGate({ t }: ConfirmGateProps): React.JSX.Element {
       <div className={styles.header}>
         <span className={styles.title}>{t('gate.title')} · <ClockTime ms={gate.windowStartAt} /> {t('gate.startsAt')}</span>
         <button type="button" className={styles.close} title={t('gate.closeTitle')} onClick={() => setDismissed(true)}>
-          <IconCloseOutline16 />
+          <Icon name="IconCloseOutline16" />
         </button>
       </div>
       <div className={styles.meta}>{t('gate.meta', { count: pending.length })}</div>
@@ -112,7 +113,7 @@ function GateRow({ task, t }: { task: HostTask; t: NsTranslate }): React.JSX.Ele
     <div className={styles.row}>
       <span className={styles.prompt}>{task.prompt.slice(0, 44)}{task.prompt.length > 44 ? '…' : ''}</span>
       <button type="button" className={styles.remove} title={t('gate.removeTitle')} onClick={remove}>
-        <IconCloseOutline16 />
+        <Icon name="IconCloseOutline16" />
       </button>
     </div>
   )

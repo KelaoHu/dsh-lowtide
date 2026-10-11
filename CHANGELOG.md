@@ -2,6 +2,45 @@
 
 All notable changes to dsh-lowtide are documented in this file.
 
+## [0.2.7] - 2026-10-11
+
+### Fixed
+
+- **The queue dock (and every other icon-bearing surface) crashed on the DSH
+  0.2.0 line.** DSH 0.2.0 renamed the whole `@deepseek-ai/dsh-client-ui-primitives`
+  icon set from size suffixes to weight suffixes — `IconChecklistOutline14`
+  became `IconChecklistOutlineRegular`, `IconPlusOutline16` became
+  `IconPlusOutlineMedium`, and the old spellings are no longer exported. A
+  missing named export arrives as `undefined`, and React renders an undefined
+  element type as error #130 ("Element type is invalid"); the shell boundary
+  reports it as `slot entry crashed in 'conversation.input.dock'` and drops the
+  **entire slot region**. The dock's row is built from five icons
+  (checklist / chevron-up / chevron-down / plus), so it was the first surface to
+  disappear — the price pill, intercept card, task rows, task form, confirm
+  gate, dropped rows and candidate list were affected by the same cause and
+  would have followed.
+
+### Changed
+
+- **Icons now resolve at runtime instead of importing fixed names.** The new
+  `client/lib/icons.tsx` probes the primitives module and prefers the 0.2.0
+  weight-suffixed spelling, falling back to the size-suffixed one older shells
+  ship, and renders nothing when a shell offers neither — so a partial shell
+  degrades to a missing glyph instead of taking down the slot. All 15 icon
+  names used by the plugin resolve on `0.2.0-rc.2`
+  (`IconX…14` → `…Regular`, `IconX…16` → `…Medium`). This is the same
+  probe-don't-assume shape the 0.2.3 session-API shim uses.
+
+### Verified
+
+- Reproduced the crash against a real DSH 0.2.0-rc.2 host in a browser over the
+  DevTools protocol: `slot entry crashed in 'conversation.input.dock'` with
+  React error #130, and the plugin's CSS-module classes absent from the DOM.
+- After the fix, the same host in a clean browser profile renders the dock —
+  `闲时队列 0 项 / 新建 / 展开` plus the onboarding banner — with **zero**
+  React errors.
+- Plugin 185 cases (23 files) and core 60 cases (2 files) pass; typecheck clean.
+
 ## [0.2.6] - 2026-10-11
 
 ### Fixed

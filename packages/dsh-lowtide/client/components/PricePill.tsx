@@ -15,7 +15,8 @@
  * how stale the pushed data is.
  */
 import { useState } from 'react'
-import { Pill, Tooltip, IconQueueOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Pill, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Icon } from '../lib/icons.tsx'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { LevelDot, Money, type LevelState } from './atoms.tsx'
 import { SSE_STALE_MS, useLowtide } from '../store.ts'
@@ -112,7 +113,7 @@ export function PricePill({ t }: PricePillProps): React.JSX.Element {
           <span className={styles.label}>{label}</span>
           {todo > 0 && (
             <>
-              <IconQueueOutline14 className={styles.queueIcon} />
+              <Icon name="IconQueueOutline14" className={styles.queueIcon} />
               <span className={styles.count}>{state.queue.total}</span>
             </>
           )}

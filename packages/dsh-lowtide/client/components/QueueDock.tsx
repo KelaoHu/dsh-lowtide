@@ -5,13 +5,10 @@
  * own files (TaskRow / DroppedRow / TaskDetail / NewTaskModal / TaskForm).
  */
 import { useEffect, useState } from 'react'
+import { Icon } from '../lib/icons.tsx'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import {
   Button,
-  IconChecklistOutline14,
-  IconChevronDownOutline14,
-  IconChevronUpOutline14,
-  IconPlusOutline16,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import { approveAll, clearFinished, runNow } from '../api.ts'
 import { lowtideStore, refreshNow, showToast, useLowtide, type HostState, type HostTask } from '../store.ts'
@@ -133,14 +130,14 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
       <span className={styles.dockActions}>
         {host.latestReport !== null && (
           <Button variant="ghost" size="sm" onClick={() => lowtideStore.update((s) => { s.reportOpen = true; s.reportUnread = false })}>
-            <span className={styles.reportBtn}><IconChecklistOutline14 />{reportUnread && <span className={styles.reportDot} />}{t('dock.report')}</span>
+            <span className={styles.reportBtn}><Icon name="IconChecklistOutline14" />{reportUnread && <span className={styles.reportDot} />}{t('dock.report')}</span>
           </Button>
         )}
         <Button variant="ghost" size="sm" onClick={() => setModalOpen(true)}>
-          <span className={styles.reportBtn}><IconPlusOutline16 />{t('dock.new')}</span>
+          <span className={styles.reportBtn}><Icon name="IconPlusOutline16" />{t('dock.new')}</span>
         </Button>
         <Button variant="ghost" size="sm" onClick={() => lowtideStore.update((s) => { s.queueOpen = !s.queueOpen })}>
-          {queueOpen ? <IconChevronDownOutline14 /> : <IconChevronUpOutline14 />}{t(queueOpen ? 'dock.collapse' : 'dock.expand')}
+          {queueOpen ? <Icon name="IconChevronDownOutline14" /> : <Icon name="IconChevronUpOutline14" />}{t(queueOpen ? 'dock.collapse' : 'dock.expand')}
         </Button>
       </span>
     </div>
@@ -201,7 +198,7 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
               <div className={styles.group}>
                 <div className={styles.sectionHead}>
                   <button type="button" className={styles.sectionToggle} onClick={() => setShowDone(!showDone)}>
-                    {showDone ? <IconChevronDownOutline14 /> : <IconChevronUpOutline14 />}
+                    {showDone ? <Icon name="IconChevronDownOutline14" /> : <Icon name="IconChevronUpOutline14" />}
                     {t('section.done')} · {done.length}
                   </button>
                   {doneOnly.length > 0 && (
@@ -221,7 +218,7 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
             {dropped.length > 0 && (
               <div className={styles.group}>
                 <button type="button" className={styles.sectionToggle} onClick={() => setShowDropped(!showDropped)}>
-                  {showDropped ? <IconChevronDownOutline14 /> : <IconChevronUpOutline14 />}
+                  {showDropped ? <Icon name="IconChevronDownOutline14" /> : <Icon name="IconChevronUpOutline14" />}
                   {t('section.dropped', { count: dropped.length })}
                 </button>
                 {showDropped && dropped.map((task) => <DroppedRow key={task.id} task={task} t={t} />)}
