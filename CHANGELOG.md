@@ -2,6 +2,47 @@
 
 All notable changes to dsh-lowtide are documented in this file.
 
+## [0.2.6] - 2026-10-11
+
+### Fixed
+
+- **Install and startup refused on the DSH 0.2.0 line.** Every release from
+  0.2.3 through 0.2.5 declared its host requirement as a caret —
+  `^0.1.5-rc.1` in 0.2.3/0.2.4, then `^0.1.0-rc.7` in 0.2.5 — and a caret on a
+  `0.x` version is bounded above by the next minor. `^0.1.0-rc.7` therefore
+  means `>=0.1.0-rc.7 <0.2.0`, so it can never match a `0.2.0-*` host. On DSH
+  Desktop 2.0.19 (DSH `0.2.0-rc.2`) the compatibility gate in
+  `@deepseek-ai/dsh-app-boot` — `semver.satisfies(runtimeVersion, range,
+  { includePrerelease: true })` — rejected the plugin outright:
+  `Plugin dsh-lowtide@0.2.5 is incompatible with dsh 0.2.0-rc.2 ... Running it
+  may cause crashes or data loss.` The install was denied and the profile
+  startup denied the row, so the plugin could not be installed or started at
+  all. The declaration is now an explicit interval,
+  `>=0.1.0-rc.7 <0.2.1-0`, on all five host peers.
+- **The 0.2.5 attempt to restore marketplace visibility only moved the
+  problem.** Lowering the floor back to `^0.1.0-rc.7` restored the
+  `0.1.1`-generation desktop host, but that same range is what excludes the
+  `0.2.0` line. The two generations need one range that spans both, which a
+  single caret cannot express.
+
+### Compatibility
+
+- Verified by running both compatibility evaluators the ecosystem actually
+  uses — `@deepseek-ai/dsh-app-boot`'s `evaluatePluginCompatibility()` (the
+  install/startup gate) and dshmarket's `satisfiesRange()` + `classifyPeer()`
+  (discovery and profile preflight) — against four hosts:
+  `0.1.0-rc.7`, `0.1.1-rc.2`, `0.1.5-rc.1`, `0.2.0-rc.2`. All four pass both
+  evaluators; the new range introduces no risk verdict and no warning.
+- The upper bound is written out rather than left open, so an untested future
+  host (for example a later `0.2.1` prerelease) is refused loudly instead of
+  passing silently.
+- No code change. 0.2.3 already feature-detects the session API generation at
+  runtime, and the host half touches only five host symbols, all present in
+  `0.2.0-rc.2`: `dsh-agent.installModelSelection`,
+  `dsh-llm.{createUserMessage,ReasoningEffortId}`,
+  `dsh-session.{SessionId,SessionLogOffset}`. End-to-end verified by installing
+  the packed tarball into a clean DSH `0.2.0-rc.2` home and booting it.
+
 ## [0.2.5] - 2026-09-17
 
 ### Fixed

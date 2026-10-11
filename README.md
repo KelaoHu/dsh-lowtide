@@ -142,7 +142,7 @@ Prerequisites: Node `^22.19 || >=24`, pnpm `11.7`. Everything is on the public n
 
 First install dsh (pick one): Desktop from DeepSeek's official channels, or `npm install -g @deepseek-ai/dsh` for the CLI. Then configure a working model in dsh's settings (e.g. an official DeepSeek API key) — lowtide never touches your credentials.
 
-> **Compatibility (dsh-lowtide ≥ 0.2.3):** dsh CLI **≥ 0.1.5-rc.1** or **DSH Desktop 2.0.3**. The browser half limits itself to the module words every shell generation seeds statically, so one artifact boots on both; 0.1.1-era CLI shells share the desktop's seed table and should behave the same, but only the two targets above are tested. (0.2.2 and older fail to boot on CLI 0.1.5 — see issue #4.)
+> **Compatibility (dsh-lowtide ≥ 0.2.6):** dsh CLI **≥ 0.1.5-rc.1** or **DSH Desktop 2.0.3**. The browser half limits itself to the module words every shell generation seeds statically, so one artifact boots on both; 0.1.1-era CLI shells share the desktop's seed table and should behave the same, but only the two targets above are tested. (0.2.2 and older fail to boot on CLI 0.1.5 — see issue #4.) **0.2.6 widens the declared host range to `>=0.1.0-rc.7 <0.2.1-0`:** 0.2.3–0.2.5 used a caret (`^0.1.0-rc.7`, later `^0.1.5-rc.1`), whose 0.x upper bound stops short of the 0.2.0 line, so the DSH 0.2.0-rc.2 compatibility gate refused to install or start them.
 
 Then clone, build, install:
 
