@@ -2,6 +2,51 @@
 
 All notable changes to dsh-lowtide are documented in this file.
 
+## [0.2.8] - 2026-10-17
+
+### Fixed
+
+- **The plugin stopped loading entirely on DSH 0.2.1.** 0.2.6 and 0.2.7 declared
+  the host range as `>=0.1.0-rc.7 <0.2.1-0`. The DeepSeek Harness release that
+  bundles `@deepseek-ai/dsh-desktop-runtime@0.2.1-rc.2` runs the 0.2.1 runtime,
+  which sits outside that range, so the compatibility gate refused the plugin
+  and the loader dropped the whole bundle rather than one surface:
+
+  ```
+  dsh: skipping profile bundle "dsh-lowtide":
+    Plugin dsh-lowtide@0.2.7 is incompatible with dsh 0.2.1-rc.2:
+    requirements {"@deepseek-ai/dsh-agent":">=0.1.0-rc.7 <0.2.1-0", ...}
+  ```
+
+  The upper bound is now `<0.2.2-0` on all five host peers. Nothing else
+  changed: the version gate was the only incompatibility.
+
+### Compatibility
+
+Checked against the 0.2.1-rc.2 runtime itself, not inferred:
+
+- every icon the client bundle resolves at runtime — `IconChecklistOutlineRegular`,
+  `IconPlusOutlineMedium`, `IconQueueOutlineRegular`, and the rest — is still
+  exported by the shell's seeded `@deepseek-ai/dsh-client-ui-primitives`
+  (17 of 17); `Button`, `Modal`, `Pill`, `StateDot`, `Toast`, `Tooltip` and
+  `writeClipboard` are unchanged, and `Modal` still takes `closeLabel`;
+- the `conversation.input.dock` slot contract is present with the same
+  `InputZone` owner props and the same standard `useInput` selector, so the dock
+  renders without changes;
+- `dsh.bundle.patch` and `dsh.client.inject` are validated the same way, so the
+  package manifest needs no other edit;
+- the widened range is accepted by the host's own `semver` for `0.1.0-rc.7`,
+  `0.1.1-rc.2`, `0.1.5-rc.1`, `0.2.0-rc.2` and `0.2.1-rc.2`, and still rejects
+  `0.2.2-rc.1` — untested hosts stay refused loudly rather than silently
+  accepted.
+
+### Notes
+
+- No client or host code changed in this release; `lib/index.js` is byte-identical
+  to 0.2.7.
+- If a profile's `dsh.profile.bundles` lost the `dsh-lowtide` entry during a host
+  upgrade, add it back — a version fix alone will not load the plugin.
+
 ## [0.2.7] - 2026-10-11
 
 ### Fixed

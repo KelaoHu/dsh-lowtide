@@ -75,7 +75,7 @@ dsh plugin --profile web add dsh-lowtide.tgz
 dsh web
 ```
 
-- 宿主区间：0.1.0-rc.7 至 0.2.0 全系（含两代引擎）。网页端需要 `@deepseek-ai/dsh` ≥ 0.1.5-rc.1（`npm i -g @deepseek-ai/dsh` 或随桌面客户端附带）；桌面端本产物已在 DSH Desktop 2.0.3（0.1.1 代引擎）与 2.0.19（DSH 0.2.0-rc.2）上验证。≥ 0.2.3 起同一份产物两端通吃（0.2.2 及更早版本在 CLI 0.1.5 上无法启动，见 issue #4）；0.2.5 及更早版本的 peer 上界写成了 caret（`^0.1.0-rc.7`，语义上止于 0.2.0 之前），在 DSH 0.2.0 系宿主上会被兼容门禁拒绝。
+- 宿主区间：0.1.0-rc.7 至 0.2.1 全系（含两代引擎）。网页端需要 `@deepseek-ai/dsh` ≥ 0.1.5-rc.1（`npm i -g @deepseek-ai/dsh` 或随桌面客户端附带）；桌面端本产物已在 DSH Desktop 2.0.3（0.1.1 代引擎）、2.0.19（DSH 0.2.0-rc.2）与 DeepSeek Harness 0.2.1-rc.2 上验证。≥ 0.2.3 起同一份产物两端通吃（0.2.2 及更早版本在 CLI 0.1.5 上无法启动，见 issue #4）；0.2.5 及更早版本的 peer 上界写成了 caret（`^0.1.0-rc.7`，语义上止于 0.2.0 之前），在 DSH 0.2.0 系宿主上会被兼容门禁拒绝；0.2.7 的显式上界 `<0.2.1-0` 同样挡住了 DSH 0.2.1，0.2.8 起上界抬至 `<0.2.2-0`。
 - 两个 profile 的状态文件相互独立（`DSH_PROFILE` 隔离），桌面端与网页端可并行运行。
 - 状态文件：`$DSH_HOME/lowtide.json`（web 端为 `$DSH_HOME/profiles/web/lowtide.json`）。
 
