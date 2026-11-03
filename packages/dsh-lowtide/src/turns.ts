@@ -302,15 +302,39 @@ export async function executeTurns(
   // True when a NEW session was seeded with the full source history.
   let forked = false
   let handle: { agent: Agent; dispose(): Promise<void> }
+  // True when this run drives the source conversation's LIVE agent, i.e. the
+  // run genuinely lands in that conversation rather than in a copy of it.
+  let liveInPlace = false
   if (resumeSessionId !== undefined) {
     try {
-      handle = await ctx.agents.resume({
-        resumeSessionId: SessionId(resumeSessionId),
-        agentOptions: { provider: selection.provider, model: selection.model },
-        setup,
-      })
-      resumed = true
-      console.log(`[lowtide] ✓ resumed conversation ${resumeSessionId} in place`)
+      // A live source cannot be prepared — persistence rejects it with
+      // "cannot prepare session X while it is live" — so resume() alone always
+      // fell through to the fork below. Driving the running agent instead keeps
+      // the run in the SAME conversation, which is what this mode promises.
+      const liveAgent = ctx.agents.get(SessionId(resumeSessionId))
+      // A live conversation may be mid-turn: bounded wait, then degrade.
+      const idle = liveAgent === undefined
+        ? false
+        : await Promise.race([liveAgent.whenIdle().then(() => true), sleep(timeoutMs).then(() => false)])
+      if (liveAgent !== undefined && idle) {
+        handle = { agent: liveAgent, dispose: async () => {} }
+        liveInPlace = true
+        resumed = true
+        console.log(`[lowtide] ✓ continuing the live conversation ${resumeSessionId} in place`)
+      } else {
+        if (liveAgent !== undefined) {
+          // Busy source: a fork still carries the full history, so degrade
+          // instead of failing the task — but say so in the run result.
+          resumeNote = `原会话仍在执行中（等待 ${Math.round(timeoutMs / 60_000)}min 未空闲），本次改为分支续接`
+        }
+        handle = await ctx.agents.resume({
+          resumeSessionId: SessionId(resumeSessionId),
+          agentOptions: { provider: selection.provider, model: selection.model },
+          setup,
+        })
+        resumed = true
+        console.log(`[lowtide] ✓ resumed conversation ${resumeSessionId} in place`)
+      }
     } catch (error) {
       const reason = error instanceof Error ? error.message : String(error)
       console.error(`[lowtide] resume ${resumeSessionId} failed (${reason}) — trying fork-style continuation`)
@@ -380,8 +404,9 @@ export async function executeTurns(
   }
   const { agent } = handle
   // Attach immediately after creation so the session lands in the user's
-  // chosen workspace even if execution later fails or times out.
-  if (workspaceEntity !== undefined) {
+  // chosen workspace even if execution later fails or times out. A live
+  // in-place run is the user's own conversation: leave where it already is.
+  if (workspaceEntity !== undefined && !liveInPlace) {
     try {
       await workspaceEntity.attachSession(agent.session.id)
       console.log(`[lowtide] ✓ session ${agent.session.id} attached to workspace "${workspacePath}"`)
@@ -393,9 +418,10 @@ export async function executeTurns(
   // produce identically-titled sessions, and a continuation session would
   // inherit the source conversation's title (both look like duplicates in the
   // session list). An explicit user-style rename also pins the title so the
-  // auto-title service cannot overwrite it later.
+  // auto-title service cannot overwrite it later. A live in-place run keeps the
+  // user's own title: renaming THEIR conversation is not this task's business.
   const titleService = ctx.get('sessionTitle') as { rename(session: unknown, title: string): unknown } | undefined
-  if (titleService !== undefined) {
+  if (titleService !== undefined && !liveInPlace) {
     try {
       titleService.rename(agent.session, taskSessionTitle(task, resumed ? 'resumed' : forked ? 'forked' : 'task'))
     } catch (error) {
@@ -404,8 +430,23 @@ export async function executeTurns(
   } else {
     console.warn('[lowtide] sessionTitle service unavailable — sessions keep auto-generated titles')
   }
+  // A live in-place run borrows the user's own conversation, so the permission
+  // preset belongs to them: remember it and put it back when this run ends.
+  let restorePreset: (() => void) | undefined
   try {
     await agent.whenIdle()
+    if (liveInPlace) {
+      const previous: string | undefined = ctx.permissionPresets.current(agent.session)
+      if (previous !== undefined && previous !== '') {
+        restorePreset = () => {
+          try {
+            ctx.permissionPresets.set(agent.session, previous)
+          } catch (error) {
+            console.error('[lowtide] permission preset restore failed:', error)
+          }
+        }
+      }
+    }
     ctx.permissionPresets.set(agent.session, task.permissionPreset)
 
     const turns: TurnResult[] = []
@@ -457,14 +498,16 @@ export async function executeTurns(
     }
     // Re-attach AFTER flush: re-validates workspace membership against the
     // now-durable header so the conversation stays visible in the workspace
-    // browser. Idempotent.
-    if (workspaceEntity !== undefined) {
+    // browser. Idempotent. Skipped for a live in-place run, whose conversation
+    // must stay in the user's own workspace, not the task's.
+    if (workspaceEntity !== undefined && !liveInPlace) {
       try {
         await workspaceEntity.attachSession(agent.session.id)
       } catch (error) {
         console.error(`[lowtide] re-attach failed for session ${agent.session.id}:`, error)
       }
     }
+    if (restorePreset !== undefined) restorePreset()
     // DELIBERATELY NOT disposing the agent: the harness host emits
     // `host/session-removed` on `session/disposed`, which makes the GUI
     // immediately drop the conversation from the workspace browser even
