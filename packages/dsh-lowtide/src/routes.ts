@@ -456,6 +456,11 @@ export function registerRoutes(ctx: Context, routes: Routes): void {
           // is refreshed. Workspace changes re-anchor the task, so the new
           // gitRef/file snapshots from intake are what the preflight will
           // check against.
+          // Object.assign merges only the keys present in the patch, so a form
+          // that dropped the source conversation must clear it explicitly.
+          if (typeof body?.continuesFromSession !== 'string' || body.continuesFromSession === '') {
+            result.task.continuesFromSession = undefined
+          }
           const edited = store.editTask(id, result.task)
           void broadcastState(ctx, routes)
           reply(res, 200, { ok: true, task: edited })
@@ -555,7 +560,13 @@ export function registerRoutes(ctx: Context, routes: Routes): void {
     })()
   }
 
-  ctx.webServer.register({ kind: 'prefix', path: '/ds-lowtide', handler })
+  // The prefix route lives in a process-wide table: release it with the fiber,
+  // or a torn-down activation (HMR / reload / failed re-apply) leaves an orphan
+  // and every later activation dies on "duplicate prefix route".
+  ctx.effect(() => {
+    const dispose = ctx.webServer.register({ kind: 'prefix', path: '/ds-lowtide', handler })
+    return typeof dispose === 'function' ? dispose : () => {}
+  })
 }
 
 /** Semantic validation for a config update beyond zod shape checks. */
