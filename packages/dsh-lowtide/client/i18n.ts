@@ -51,6 +51,8 @@ const zh = {
   'dock.new': '新建',
   'dock.expand': '展开',
   'dock.collapse': '收起',
+  'dock.tabTitle': '闲时队列',
+  'dock.tabDesc': '闲时队列：待裁定任务、新建任务与执行报告',
   'onboarding.text': '把任务交进来、由你决定放行，它会在闲时低价时段自动执行，跑完给你一份执行报告。',
   'onboarding.dismiss': '知道了',
   'empty.title': '队列还空着。随时把活儿交进来，批准了自动跑。',
@@ -399,6 +401,8 @@ const en: Record<NsKey, string> = {
   'dock.new': 'New',
   'dock.expand': 'Expand',
   'dock.collapse': 'Collapse',
+  'dock.tabTitle': 'Off-peak queue',
+  'dock.tabDesc': 'Queued off-peak tasks, new tasks and execution reports',
   'onboarding.text': 'Hand tasks over anytime; once you approve them, they run automatically during low-price off-peak hours and you get an execution report.',
   'onboarding.dismiss': 'Got it',
   'empty.title': 'The queue is empty — hand a task over, it runs once approved.',
@@ -726,4 +730,12 @@ export function fill(template: string, params: Record<string, unknown> | undefin
     out = out.replaceAll(`{${key}}`, String(value))
   }
   return out
+}
+
+/** Dict lookup for hosts that render outside the slot locale system.
+ *  dsh-better-sidebar asks for a tab title/description thunk and hands the tab
+ *  body no `t`, so those surfaces translate themselves off the active locale. */
+export function translateFor(locale: string, key: NsKey, params?: Record<string, unknown>): string {
+  const dict = locale === 'zh' ? zh : en
+  return fill(dict[key], params)
 }

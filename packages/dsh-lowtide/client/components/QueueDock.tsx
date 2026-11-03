@@ -3,6 +3,10 @@
  * the expandable drawer above it — grouped queue sections (待执行 / 已结束 /
  * 已放弃), footer totals and batch controls. Rows and modals live in their
  * own files (TaskRow / DroppedRow / TaskDetail / NewTaskModal / TaskForm).
+ *
+ * The body is `QueueDockView`, so the very same panel can also fill a sidebar
+ * host's tab (`seat="panel"`: always expanded, no toggle, no composer input) —
+ * see client/better-sidebar.tsx.
  */
 import { useEffect, useState } from 'react'
 import { Icon } from '../lib/icons.tsx'
@@ -24,11 +28,33 @@ import styles from './QueueDock.module.css'
 
 export type QueueDockProps = PropsRuntime<'conversation.input.dock'> & { t: NsTranslate }
 
-export function QueueDock(props: QueueDockProps): React.JSX.Element {
+/** Body props: `useInput` exists only in the dock seat. */
+export interface QueueDockViewProps {
+  t: NsTranslate
+  useInput?: QueueDockProps['useInput']
+  /** `dock` = composer chrome; `panel` = fill a sidebar tab. */
+  seat?: 'dock' | 'panel'
+}
+
+/** Slot entry (conversation.input.dock). */
+export function QueueDock(props: QueueDockProps): React.JSX.Element | null {
+  return <QueueDockView t={props.t} useInput={props.useInput} />
+}
+
+/** Mirrors the composer draft for the intercept chain; stays mounted even when
+ *  the dock itself renders nothing. */
+function DraftTracker({ useInput }: { useInput: NonNullable<QueueDockViewProps['useInput']> }): null {
+  useInterceptDraftTracking(useInput((input) => input.draft))
+  return null
+}
+
+export function QueueDockView(props: QueueDockViewProps): React.JSX.Element | null {
   const { t } = props
+  const panel = props.seat === 'panel'
   const host = useLowtide((s) => s.host)
   const connected = useLowtide((s) => s.connected)
   const queueOpen = useLowtide((s) => s.queueOpen)
+  const sidebarHosted = useLowtide((s) => s.sidebarHosted)
   const reportUnread = useLowtide((s) => s.reportUnread)
   const [modalOpen, setModalOpen] = useState(false)
   const [detailTask, setDetailTask] = useState<HostTask | null>(null)
@@ -46,13 +72,18 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
   // Keep the intercept chain's draft tracker fresh. The dock stays mounted
   // inside the overlay-kept fallback even while the intercept card is
   // elected, so the draft (and its per-message dismissal) stays accurate.
-  const liveDraft = props.useInput((input) => input.draft)
-  useInterceptDraftTracking(liveDraft)
+  // A sidebar tab has no composer input to mirror.
+  const tracker = props.useInput === undefined ? null : <DraftTracker useInput={props.useInput} />
+
+  // A sidebar host renders the queue as a tab (client/better-sidebar.tsx): no
+  // bar above the composer; the tracker alone keeps the intercept chain fed.
+  if (sidebarHosted && !panel) return tracker
 
   if (host === null) {
     // 断连/加载中:不整块隐身,给一行占位 + 重试(避免插件"消失"的观感)。
     return (
-      <div className={styles.dock}>
+      <div className={panel ? styles.panel : styles.dock}>
+        {tracker}
         <div className={styles.dockRow}>
           <span className={styles.dockTitle}>{connected ? t('dock.loading') : t('dock.disconnected')}</span>
           {!connected && (
@@ -136,15 +167,18 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
         <Button variant="ghost" size="sm" onClick={() => setModalOpen(true)}>
           <span className={styles.reportBtn}><Icon name="IconPlusOutline16" />{t('dock.new')}</span>
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => lowtideStore.update((s) => { s.queueOpen = !s.queueOpen })}>
-          {queueOpen ? <Icon name="IconChevronDownOutline14" /> : <Icon name="IconChevronUpOutline14" />}{t(queueOpen ? 'dock.collapse' : 'dock.expand')}
-        </Button>
+        {!panel && (
+          <Button variant="ghost" size="sm" onClick={() => lowtideStore.update((s) => { s.queueOpen = !s.queueOpen })}>
+            {queueOpen ? <Icon name="IconChevronDownOutline14" /> : <Icon name="IconChevronUpOutline14" />}{t(queueOpen ? 'dock.collapse' : 'dock.expand')}
+          </Button>
+        )}
       </span>
     </div>
   )
 
-  if (!queueOpen) return (
-    <div className={styles.dock}>
+  if (!panel && !queueOpen) return (
+    <div className={panel ? styles.panel : styles.dock}>
+      {tracker}
       {onboardingBanner}
       {dockRow}
       <NewTaskModal open={modalOpen} t={t} defaultAutonomy={host.autonomy as 'l1' | 'l2' | 'l3'} onClose={() => setModalOpen(false)} />
@@ -161,7 +195,8 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
     .filter((group) => group.tasks.length > 0)
 
   return (
-    <div className={styles.dock}>
+    <div className={panel ? styles.panel : styles.dock}>
+      {tracker}
       {onboardingBanner}
       {dockRow}
       <div className={styles.drawer}>

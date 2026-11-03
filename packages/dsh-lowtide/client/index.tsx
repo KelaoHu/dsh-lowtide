@@ -1,7 +1,8 @@
 /**
  * dsh-lowtide browser half (Phase 1 assembly + review round 1 polish).
  * Six-surface registrations: ① PricePill (header utilities), ② InterceptCard
- * (composer chain), ③ QueueDock (input dock), ⑤ MorningReport (shell overlay).
+ * (composer chain), ③ QueueDock (input dock; yields to a sidebar host),
+ * ⑤ MorningReport (shell overlay).
  * ④ ConfirmGate and ⑥ Settings land in the same overlay/settings slots.
  * Polling drives the entry store (SSE is the live path, polling the fallback).
  *
@@ -23,6 +24,7 @@ import { DICTS, NS } from './i18n.ts'
 import { PricePill } from './components/PricePill.tsx'
 import { InterceptCard, selectIntercept } from './components/InterceptCard.tsx'
 import { QueueDock } from './components/QueueDock.tsx'
+import { installQueueTab } from './better-sidebar.tsx'
 import { MorningReport } from './components/MorningReport.tsx'
 import { ConfirmGate } from './components/ConfirmGate.tsx'
 import { LowtideSettings } from './settings.tsx'
@@ -55,6 +57,11 @@ export function apply(ctx: ClientContext): void {
   })
 
   const stop = startPolling()
+
+  // Optional dsh-better-sidebar host: register the queue as a tab there. When
+  // the host is installed the dock slot below renders nothing (no bar above
+  // the composer); without it the dock stays the only queue surface.
+  installQueueTab(ctx)
 
   ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register(
     { name: 'conversation.session.header.utilities', id: 'lt-price-pill', order: 100, locale: NS },
