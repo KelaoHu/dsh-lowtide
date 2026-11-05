@@ -205,3 +205,32 @@
   color: var(--dsw-alias-label-tertiary);
   font: var(--dsw-font-xs-13);
 }
+
+/* ── Seat "panel": an external sidebar host (dsh-better-sidebar) renders the
+ * same body as a tab. The tab body is a flex container with a fixed height, so
+ * the root carries the sizing and the drawer takes the remaining space. ── */
+.panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 4px;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.panel > .dockRow {
+  flex: none;
+  border-radius: 0;
+}
+
+.panel > .onboarding {
+  width: auto;
+  margin: 0;
+}
+
+.panel > .drawer {
+  flex: 1;
+  max-height: none;
+  min-height: 0;
+}
