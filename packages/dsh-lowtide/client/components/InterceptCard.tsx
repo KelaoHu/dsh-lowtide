@@ -9,7 +9,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { Button, StateDot } from '@deepseek-ai/dsh-client-ui-primitives'
 import { Icon } from '../lib/icons.tsx'
 import { dismissPeakToday, estimate, rememberWorkspace, submitTask, lastWorkspace } from '../api.ts'
-import { lowtideStore, refreshNow, showToast, useLowtide } from '../store.ts'
+import { openQueueTab } from '../better-sidebar.tsx'
+import { refreshNow, showToast, useLowtide } from '../store.ts'
 import { type NsTranslate } from '../i18n.ts'
 import { TaskForm, type TaskFormValues } from './TaskForm.tsx'
 import styles from './InterceptCard.module.css'
@@ -91,7 +92,9 @@ export function InterceptCard(props: InterceptCardProps): React.JSX.Element | nu
       if (workspace.trim() !== '') rememberWorkspace(workspace.trim())
       props.inputActions.setDraft('')
       showToast(t('toast.enqueued'))
-      lowtideStore.update((s) => { s.queueOpen = true })
+      // Open the sidebar tab when the host really shows it; otherwise expand
+      // the composer dock (the bridge drops a stale hand-over for us).
+      openQueueTab()
     } else {
       showToast(t('toast.submitFailed', { error: result.error ?? 'unknown' }))
     }

@@ -23,6 +23,7 @@ import { DICTS, NS } from './i18n.ts'
 import { PricePill } from './components/PricePill.tsx'
 import { InterceptCard } from './components/InterceptCard.tsx'
 import { QueueDock } from './components/QueueDock.tsx'
+import { installQueueTab } from './better-sidebar.tsx'
 import { MorningReport } from './components/MorningReport.tsx'
 import { ConfirmGate } from './components/ConfirmGate.tsx'
 import { LowtideSettings } from './settings.tsx'
@@ -55,6 +56,10 @@ export function apply(ctx: ClientContext): void {
   })
 
   const stop = startPolling()
+
+  // Optional host: when dsh-better-sidebar is installed the queue panel also
+  // becomes a tab there (the dock yields while the host really shows it).
+  installQueueTab(ctx)
 
   ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register(
     { name: 'conversation.session.header.utilities', id: 'lt-price-pill', order: 100, locale: NS },

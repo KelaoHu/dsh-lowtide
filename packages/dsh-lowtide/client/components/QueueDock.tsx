@@ -3,6 +3,11 @@
  * the expandable drawer above it — grouped queue sections (待执行 / 已结束 /
  * 已放弃), footer totals and batch controls. Rows and modals live in their
  * own files (TaskRow / DroppedRow / TaskDetail / NewTaskModal / TaskForm).
+ *
+ * The body is `QueueDockView`, so the very same panel also fills an external
+ * sidebar host's tab (`seat="panel"`: always expanded, no toggle, no composer
+ * chrome) — see client/better-sidebar.tsx. The dock seat yields while the host
+ * actually renders the tab; `sidebarHosted` drives that hand-over.
  */
 import { useEffect, useState } from 'react'
 import { Icon } from '../lib/icons.tsx'
@@ -23,11 +28,25 @@ import styles from './QueueDock.module.css'
 
 export type QueueDockProps = PropsRuntime<'conversation.input.dock'> & { t: NsTranslate }
 
-export function QueueDock(props: QueueDockProps): React.JSX.Element {
+/** Body props: `t` comes from the slot seat or from a locale-bound thunk. */
+export interface QueueDockViewProps {
+  t: NsTranslate
+  /** `dock` = composer chrome; `panel` = fill a sidebar tab. */
+  seat?: 'dock' | 'panel'
+}
+
+/** Slot entry (conversation.input.dock). */
+export function QueueDock(props: QueueDockProps): React.JSX.Element | null {
+  return <QueueDockView t={props.t} />
+}
+
+export function QueueDockView(props: QueueDockViewProps): React.JSX.Element | null {
   const { t } = props
+  const panel = props.seat === 'panel'
   const host = useLowtide((s) => s.host)
   const connected = useLowtide((s) => s.connected)
   const queueOpen = useLowtide((s) => s.queueOpen)
+  const sidebarHosted = useLowtide((s) => s.sidebarHosted)
   const reportUnread = useLowtide((s) => s.reportUnread)
   const [modalOpen, setModalOpen] = useState(false)
   const [detailTask, setDetailTask] = useState<HostTask | null>(null)
@@ -42,10 +61,14 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
     try { return localStorage.getItem('dsh-lowtide:onboarded') === '1' } catch { return true }
   })
 
+  // A sidebar host renders this panel as a tab (client/better-sidebar.tsx):
+  // the composer dock yields entirely so the queue never shows twice.
+  if (sidebarHosted && !panel) return null
+
   if (host === null) {
     // 断连/加载中:不整块隐身,给一行占位 + 重试(避免插件"消失"的观感)。
     return (
-      <div className={styles.dock}>
+      <div className={panel ? styles.panel : styles.dock}>
         <div className={styles.dockRow}>
           <span className={styles.dockTitle}>{connected ? t('dock.loading') : t('dock.disconnected')}</span>
           {!connected && (
@@ -129,14 +152,16 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
         <Button variant="ghost" size="sm" onClick={() => setModalOpen(true)}>
           <span className={styles.reportBtn}><Icon name="IconPlusOutline16" />{t('dock.new')}</span>
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => lowtideStore.update((s) => { s.queueOpen = !s.queueOpen })}>
-          {queueOpen ? <Icon name="IconChevronDownOutline14" /> : <Icon name="IconChevronUpOutline14" />}{t(queueOpen ? 'dock.collapse' : 'dock.expand')}
-        </Button>
+        {!panel && (
+          <Button variant="ghost" size="sm" onClick={() => lowtideStore.update((s) => { s.queueOpen = !s.queueOpen })}>
+            {queueOpen ? <Icon name="IconChevronDownOutline14" /> : <Icon name="IconChevronUpOutline14" />}{t(queueOpen ? 'dock.collapse' : 'dock.expand')}
+          </Button>
+        )}
       </span>
     </div>
   )
 
-  if (!queueOpen) return (
+  if (!panel && !queueOpen) return (
     <div className={styles.dock}>
       {onboardingBanner}
       {dockRow}
@@ -154,7 +179,7 @@ export function QueueDock(props: QueueDockProps): React.JSX.Element {
     .filter((group) => group.tasks.length > 0)
 
   return (
-    <div className={styles.dock}>
+    <div className={panel ? styles.panel : styles.dock}>
       {onboardingBanner}
       {dockRow}
       <div className={styles.drawer}>

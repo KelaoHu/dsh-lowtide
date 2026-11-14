@@ -164,6 +164,12 @@ export interface ClientUiState {
   /** Last state-fetch error message (null when the last poll succeeded). */
   error: string | null
   queueOpen: boolean
+  /**
+   * True while an external sidebar host (dsh-better-sidebar) really shows the
+   * queue tab: the type is registered, the user has not switched it off and a
+   * session is in view. The composer dock then yields to the tab.
+   */
+  sidebarHosted: boolean
   reportOpen: boolean
   reportHistoryOpen: boolean
   reportUnread: boolean
@@ -190,6 +196,7 @@ export const lowtideStore = createSnapshotStore<ClientUiState>({
   connected: false,
   error: null,
   queueOpen: false,
+  sidebarHosted: false,
   reportOpen: false,
   reportHistoryOpen: false,
   reportUnread: false,
@@ -222,6 +229,7 @@ export function resetUiState(): void {
     connected: false,
     error: null,
     queueOpen: false,
+    sidebarHosted: false,
     reportOpen: false,
     reportHistoryOpen: false,
     reportUnread: false,
