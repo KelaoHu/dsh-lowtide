@@ -4,6 +4,7 @@
  * cleanup, usage normalization. Extracted so smart-iterative.ts can drive
  * turns without importing runner.ts (which imports it back — cycle).
  */
+import { realpathSync } from 'node:fs'
 import { installModelSelection, type ModelSelectionRef } from '@deepseek-ai/dsh-agent'
 import { createUserMessage, ReasoningEffortId } from '@deepseek-ai/dsh-llm'
 import { SessionId, SessionLogOffset } from '@deepseek-ai/dsh-session'
@@ -97,6 +98,156 @@ export function forkSeedBoundary(events: readonly { type: string; seq: number }[
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** Longest a busy source conversation may hold a task up before the runner
+ *  falls back to a fork. Capped at 30s and applied with min(timeoutMs, this):
+ *  spending the whole off-peak budget waiting on someone's live conversation
+ *  would silently eat the window. */
+const LIVE_WAIT_MAX_MS = 30_000
+
+/**
+ * Resolve once `agent` is idle, or `false` after `timeoutMs`. The losing timer
+ * is cleared as soon as the race settles, so an idle wait leaves no pending
+ * handle (and no lingering ref) behind.
+ */
+export async function waitIdleFor(agent: Agent, timeoutMs: number): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<boolean>((resolve) => {
+    timer = setTimeout(() => resolve(false), timeoutMs)
+  })
+  try {
+    return await Promise.race([agent.whenIdle().then(() => true, () => false), timeout])
+  } finally {
+    if (timer !== undefined) clearTimeout(timer)
+  }
+}
+
+/**
+ * Canonical form of a directory for comparison. `fs.realpath` folds symlinks,
+ * `..` segments and short/long spellings; on Windows the result is case-folded
+ * because NTFS is case-insensitive (a task recorded as `C:\\Repo` must match
+ * the live session's `C:\\repo`). Unresolvable paths are compared as written.
+ */
+export function canonicalPath(path: string): string {
+  let resolved = path
+  try {
+    resolved = realpathSync(path)
+  } catch {
+    // Missing on this host (removed workspace, test fixture) — compare literally.
+  }
+  // A trailing separator never distinguishes two directories.
+  const trimmed = resolved.replace(/[\\/]+$/, '')
+  return process.platform === 'win32' ? trimmed.toLowerCase() : trimmed
+}
+
+export interface LiveExpectation {
+  /** Canonical task workspace; undefined = the task has no workspace. */
+  cwd?: string
+  provider: string
+  model: string
+  /** The task's EXPLICIT reasoning effort; undefined = no requirement. */
+  reasoning?: string
+}
+
+/**
+ * Why the source conversation cannot be driven in place — undefined means it
+ * can. Everything checked here is something a run would otherwise CHANGE on
+ * the user's own conversation: the permission preset (restored afterwards,
+ * but only if it maps back into the preset table), the workspace (fixed per
+ * session), the model route and the reasoning effort. A live conversation
+ * whose settings cannot be proven equivalent must be forked, never silently
+ * reconfigured.
+ */
+/**
+ * The borrowed conversation's permission preset, captured ONCE. The same value
+ * feeds the guard and the finally restore, so a state change between two reads
+ * can never leave the user's conversation parked on the task's preset.
+ */
+export interface PresetCapture {
+  /** The preset to hand back afterwards; undefined when it is unrestorable. */
+  previous?: string
+  /** Why the preset cannot be restored; undefined when it can. */
+  reason?: string
+}
+
+/**
+ * Capture the preset a borrowed conversation must be handed back with.
+ * `custom` has no catalog entry (set(session, 'custom') throws), and an empty,
+ * unreadable or unknown value cannot be proven equivalent — all of those mean
+ * the conversation must NOT be driven in place.
+ */
+export function captureRestorablePreset(ctx: Context, session: unknown): PresetCapture {
+  let previous: string | undefined
+  try {
+    previous = ctx.permissionPresets.current(session as never)
+  } catch {
+    return { reason: '无法读取原会话的权限档，跑完无法还原' }
+  }
+  if (previous === 'custom') return { reason: '原会话的权限档是自定义档，跑完无法还原' }
+  if (previous === undefined || previous === '') return { reason: '无法确定原会话的权限档，跑完无法还原' }
+  try {
+    const names = ctx.permissionPresets.names
+    if (names.length > 0 && !names.includes(previous)) {
+      return { reason: `原会话的权限档「${previous}」不在预设表里，跑完无法还原` }
+    }
+  } catch {
+    // Host generation without a preset catalog — the checks above suffice.
+  }
+  return { previous }
+}
+
+/** Hand a borrowed conversation's preset back. Never throws. */
+export function presetRestore(ctx: Context, session: unknown, previous: string): () => void {
+  return () => {
+    try {
+      ctx.permissionPresets.set(session as never, previous)
+    } catch (error) {
+      console.error('[lowtide] permission preset restore failed:', error)
+    }
+  }
+}
+
+export function liveAgentBlocker(
+  ctx: Context,
+  agent: Agent,
+  expected: LiveExpectation,
+  /** Reuse the caller's single capture instead of reading the preset again. */
+  preset?: PresetCapture,
+): string | undefined {
+  // A borrowed conversation must be handed back exactly as it was.
+  const captured = preset ?? captureRestorablePreset(ctx, agent.session)
+  if (captured.reason !== undefined) return captured.reason
+
+  const inbox = agent.inbox as { nextTurn?: readonly unknown[]; nextStep?: readonly unknown[] } | undefined
+  if ((inbox?.nextTurn?.length ?? 0) > 0 || (inbox?.nextStep?.length ?? 0) > 0) {
+    return '原会话里还有排队未处理的消息'
+  }
+
+  const liveCwd = (agent.session.header as { cwd?: string } | undefined)?.cwd
+  if (expected.cwd !== undefined) {
+    if (liveCwd === undefined || liveCwd === '') return '原会话没有记录工作目录，无法确认与任务工作目录一致'
+    if (canonicalPath(liveCwd) !== canonicalPath(expected.cwd)) {
+      return `原会话的工作目录是 ${liveCwd}，与任务工作目录 ${expected.cwd} 不一致`
+    }
+  }
+
+  const options = agent.options as { provider?: string; model?: string; reasoningEffort?: unknown } | undefined
+  if (options?.provider !== expected.provider) {
+    return options?.provider === undefined
+      ? `原会话没有记录模型线路，与任务的 ${expected.provider} 线路不一致`
+      : `原会话走 ${options.provider} 线路，与任务的 ${expected.provider} 线路不一致`
+  }
+  if (options?.model !== expected.model) {
+    return options?.model === undefined
+      ? `原会话没有记录模型，与任务的 ${expected.model} 模型不一致`
+      : `原会话用 ${options.model} 模型，与任务的 ${expected.model} 模型不一致`
+  }
+  if (expected.reasoning !== undefined && String(options?.reasoningEffort ?? '') !== expected.reasoning) {
+    const actual = options?.reasoningEffort === undefined ? '未设置' : String(options.reasoningEffort)
+    return `原会话的推理档是 ${actual}，与任务的 ${expected.reasoning} 不一致`
+  }
+  return undefined
 }
 
 export function usageOf(raw: unknown): UsageLike {
@@ -301,19 +452,92 @@ export async function executeTurns(
   let resumed = false
   // True when a NEW session was seeded with the full source history.
   let forked = false
-  let handle: { agent: Agent; dispose(): Promise<void> }
+  // True when the task drives the user's LIVE conversation in place.
+  let liveInPlace = false
+  // True when the task runs inside a conversation the USER owns (live or
+  // cold-resumed): such a session is borrowed — its preset is handed back and
+  // it is never attached to the task's workspace.
+  let borrowedSession = false
+  // Why the live conversation could not be taken over. Turned into resumeNote
+  // ONLY if a fallback tier actually runs (never on a clean resume).
+  let liveBlocker: string | undefined
+  let handle: { agent: Agent; dispose(): Promise<void> } | undefined
+  /** The borrowed session's preset, captured once and reused by the restore. */
+  let borrowedPreset: PresetCapture | undefined
+  /** Hand the borrowed conversation's preset back (first thing in finally). */
+  let restorePreset: (() => void) | undefined
   if (resumeSessionId !== undefined) {
     try {
-      handle = await ctx.agents.resume({
-        resumeSessionId: SessionId(resumeSessionId),
-        agentOptions: { provider: selection.provider, model: selection.model },
-        setup,
-      })
-      resumed = true
-      console.log(`[lowtide] ✓ resumed conversation ${resumeSessionId} in place`)
+      // Tier 0: the source conversation is LIVE in this runtime. The desktop
+      // keeps opened conversations live, and persistence.prepare rejects live
+      // sessions, so agents.resume can only fail for it — drive it in place
+      // instead: same session id, full context, no duplicate conversation.
+      const liveAgent = ctx.agents.get(SessionId(resumeSessionId))
+      if (liveAgent !== undefined) {
+        // ONE capture, shared by the guard below and the finally restore.
+        borrowedPreset = captureRestorablePreset(ctx, liveAgent.session)
+        liveBlocker = liveAgentBlocker(ctx, liveAgent, {
+          ...(task.workspace === '' ? {} : { cwd: workspacePath }),
+          provider: selection.provider,
+          model: selection.model,
+          ...(selection.reasoningEffort === undefined ? {} : { reasoning: String(selection.reasoningEffort) }),
+        }, borrowedPreset)
+      }
+      if (liveAgent !== undefined && liveBlocker === undefined) {
+        const waitMs = Math.min(timeoutMs, LIVE_WAIT_MAX_MS)
+        if (await waitIdleFor(liveAgent, waitMs)) {
+          handle = { agent: liveAgent, dispose: async () => {} }
+          liveInPlace = true
+          borrowedSession = true
+          resumed = true
+          if (borrowedPreset?.previous !== undefined) {
+            restorePreset = presetRestore(ctx, liveAgent.session, borrowedPreset.previous)
+          }
+          console.log(`[lowtide] ✓ driving the live conversation ${resumeSessionId} in place`)
+        } else {
+          liveBlocker = `原会话仍在执行中（等待 ${Math.round(waitMs / 1000)}s 未空闲）`
+        }
+      }
+      if (handle === undefined) {
+        // Tier 1: agents.resume also runs in the USER's own conversation (same
+        // session id), so it borrows the session exactly like tier 0 and needs
+        // the same guarantee: the preset must be provably restorable, and the
+        // captured value is the one handed back in the finally block.
+        const resumedHandle = await ctx.agents.resume({
+          resumeSessionId: SessionId(resumeSessionId),
+          agentOptions: { provider: selection.provider, model: selection.model },
+          setup,
+        })
+        borrowedPreset = captureRestorablePreset(ctx, resumedHandle.agent.session)
+        if (borrowedPreset.reason !== undefined) {
+          // Refuse to drive the user's conversation rather than leave their
+          // sandbox/approval choice stranded on the task's preset. The session
+          // is left as resumed-idle (disposing it would drop it from the
+          // workspace browser); the run continues on the fork tier.
+          resumeNote = `原会话不能原地续接（${borrowedPreset.reason}），本次改为分支续接`
+          const refusal = new Error(borrowedPreset.reason)
+          ;(refusal as { presetNotRestorable?: boolean }).presetNotRestorable = true
+          throw refusal
+        }
+        handle = resumedHandle
+        resumed = true
+        borrowedSession = true
+        if (borrowedPreset.previous !== undefined) {
+          restorePreset = presetRestore(ctx, resumedHandle.agent.session, borrowedPreset.previous)
+        }
+        // The resume tier carried the day — an abandoned live attempt must not
+        // leave a "fell back" note behind.
+        resumeNote = undefined
+        console.log(`[lowtide] ✓ resumed conversation ${resumeSessionId} in place`)
+      }
     } catch (error) {
+      const refused = (error as { presetNotRestorable?: boolean } | undefined)?.presetNotRestorable === true
       const reason = error instanceof Error ? error.message : String(error)
-      console.error(`[lowtide] resume ${resumeSessionId} failed (${reason}) — trying fork-style continuation`)
+      console.error(
+        refused
+          ? `[lowtide] refusing to drive ${resumeSessionId} in place (${reason}) — trying fork-style continuation`
+          : `[lowtide] resume ${resumeSessionId} failed (${reason}) — trying fork-style continuation`,
+      )
       // Tier 2: seed a new session with the live source's complete history.
       // Cross-generation compat: dsh 0.1.5 renamed Session.events →
       // snapshotEvents() and moved the fork prefix length from meta.seedLength
@@ -354,13 +578,21 @@ export async function executeTurns(
               setup,
             } as unknown as Parameters<typeof ctx.agents.create>[0]))
         forked = true
+        // A live conversation was refused (busy/incompatible) AND resume
+        // failed: the fork is a real downgrade, so say why.
+        if (liveBlocker !== undefined) resumeNote = `原会话不能原地续接（${liveBlocker}），本次改为分支续接`
         console.log(`[lowtide] ✓ continuation session ${handle.agent.session.id} seeded with ${seed.length} events from ${resumeSessionId} (lossless fork)`)
       } else {
         // Tier 3: no completed turn to inherit (or source vanished) — the
         // continuation would be lossy, so say so VISIBLY.
-        resumeNote = live === undefined
-          ? `会话续接失败（${reason}），且源会话不在运行中，已新建会话执行`
-          : '所选会话还没有完整的对话轮次，无法续接其上下文，已新建会话执行'
+        const because = live === undefined
+          ? `会话续接失败（${reason}），且源会话不在运行中`
+          : '所选会话还没有完整的对话轮次，无法续接其上下文'
+        // `??=`: a note already written by an earlier refusal is more specific
+        // than the generic fallback sentence.
+        resumeNote ??= liveBlocker === undefined
+          ? `${because}，已新建会话执行`
+          : `${because}（${liveBlocker}），已新建会话执行`
         console.error(`[lowtide] fork-style continuation unavailable for ${resumeSessionId} (live=${live !== undefined}), using a fresh session:`, error)
         handle = await ctx.agents.create({
           sessionId: SessionId(`lt-${task.id}-${Date.now()}`),
@@ -378,10 +610,13 @@ export async function executeTurns(
       setup,
     })
   }
+  if (handle === undefined) throw new Error('continuation produced no agent handle')
   const { agent } = handle
   // Attach immediately after creation so the session lands in the user's
-  // chosen workspace even if execution later fails or times out.
-  if (workspaceEntity !== undefined) {
+  // chosen workspace even if execution later fails or times out. A borrowed
+  // conversation (live, or cold-resumed in place) already sits wherever the
+  // user put it — attaching it would move the user's own session.
+  if (!borrowedSession && workspaceEntity !== undefined) {
     try {
       await workspaceEntity.attachSession(agent.session.id)
       console.log(`[lowtide] ✓ session ${agent.session.id} attached to workspace "${workspacePath}"`)
@@ -394,16 +629,23 @@ export async function executeTurns(
   // inherit the source conversation's title (both look like duplicates in the
   // session list). An explicit user-style rename also pins the title so the
   // auto-title service cannot overwrite it later.
-  const titleService = ctx.get('sessionTitle') as { rename(session: unknown, title: string): unknown } | undefined
-  if (titleService !== undefined) {
-    try {
-      titleService.rename(agent.session, taskSessionTitle(task, resumed ? 'resumed' : forked ? 'forked' : 'task'))
-    } catch (error) {
-      console.error(`[lowtide] session title set failed for ${agent.session.id}:`, error)
+  // A borrowed conversation keeps its own title: the user owns it, and
+  // renaming would edit their session (a distinct continuation session gets a
+  // new title so repeated runs stay distinguishable).
+  if (!borrowedSession) {
+    const titleService = ctx.get('sessionTitle') as { rename(session: unknown, title: string): unknown } | undefined
+    if (titleService !== undefined) {
+      try {
+        titleService.rename(agent.session, taskSessionTitle(task, resumed ? 'resumed' : forked ? 'forked' : 'task'))
+      } catch (error) {
+        console.error(`[lowtide] session title set failed for ${agent.session.id}:`, error)
+      }
+    } else {
+      console.warn('[lowtide] sessionTitle service unavailable — sessions keep auto-generated titles')
     }
-  } else {
-    console.warn('[lowtide] sessionTitle service unavailable — sessions keep auto-generated titles')
   }
+  // The borrowed conversation's preset was captured once, before set() below;
+  // the capture lives in `restorePreset`, which runs first in finally.
   try {
     await agent.whenIdle()
     ctx.permissionPresets.set(agent.session, task.permissionPreset)
@@ -448,6 +690,10 @@ export async function executeTurns(
     }
     return { turns, elapsedMs: Date.now() - started, status: 'done', ...(resumeNote !== undefined ? { resumeNote } : {}), ...(resumed ? { resumed: true } : {}), ...(forked ? { forked: true } : {}) }
   } finally {
+    // FIRST: hand a borrowed conversation's permission preset back, BEFORE the
+    // flush persists anything. done/failed/aborted/timeout/throw all share
+    // this path, so a borrowed session can never be left on the task's preset.
+    if (restorePreset !== undefined) restorePreset()
     // Flush to persist the conversation (and any execution results) to disk.
     const sessions = ctx.get('sessions') as { flush(session: unknown): Promise<void> } | undefined
     if (sessions !== undefined) {
@@ -457,8 +703,11 @@ export async function executeTurns(
     }
     // Re-attach AFTER flush: re-validates workspace membership against the
     // now-durable header so the conversation stays visible in the workspace
-    // browser. Idempotent.
-    if (workspaceEntity !== undefined) {
+    // browser. Idempotent. A borrowed live conversation is NEVER attached —
+    // not on the way in and not here: the user's own session already sits
+    // wherever the user put it, and attaching would move it into the task's
+    // workspace.
+    if (workspaceEntity !== undefined && !borrowedSession) {
       try {
         await workspaceEntity.attachSession(agent.session.id)
       } catch (error) {

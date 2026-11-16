@@ -209,6 +209,10 @@ async function executeStrategy(ctx: Context, store: LowtideStore, task: Task, ti
   if (strategy === 'review') {
     const res = await executeTurns(ctx, task, (index) => (index === 0 ? prompt : null), timeoutMs, reasoning, resumeSessionId)
     if (res.resumeNote !== undefined) resumeNote = res.resumeNote
+    // The first (execution) call is the one that may continue the requested
+    // conversation — its flags must survive into the outcome.
+    if (res.resumed) resumed = true
+    if (res.forked) forked = true
     if (res.status !== 'done') {
       return {
         final: res.status,
@@ -224,7 +228,9 @@ async function executeStrategy(ctx: Context, store: LowtideStore, task: Task, ti
     }
     const resultText = res.turns[0]?.text ?? ''
     const reviewPrompt = reviewPromptOf(task.prompt, resultText, task.strategyHint)
-    const rev = await executeTurns(ctx, task, (index) => (index === 0 ? reviewPrompt : null), timeoutMs, reasoning, resumeSessionId)
+    // The critique is a SECOND OPINION and must be an independent fresh
+    // session — never a continuation of the conversation under review.
+    const rev = await executeTurns(ctx, task, (index) => (index === 0 ? reviewPrompt : null), timeoutMs, reasoning)
     if (rev.resumeNote !== undefined) resumeNote = rev.resumeNote
     if (rev.resumed) resumed = true
     if (rev.forked) forked = true
@@ -275,6 +281,8 @@ async function executeStrategy(ctx: Context, store: LowtideStore, task: Task, ti
   const next: NextMessage = (index) => (index === 0 ? prompt : null)
   const res = await executeTurns(ctx, task, next, timeoutMs, reasoning, resumeSessionId)
   if (res.resumeNote !== undefined) resumeNote = res.resumeNote
+  if (res.resumed) resumed = true
+  if (res.forked) forked = true
   const totalUsage = sumTurns(res.turns)
   const finalText = res.turns.length > 0 ? res.turns[res.turns.length - 1].text : ''
   return {
