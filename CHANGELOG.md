@@ -2,6 +2,58 @@
 
 All notable changes to dsh-lowtide are documented in this file.
 
+## [0.3.1] - 2026-11-17
+
+### Fixed
+
+- **"Continue an existing session" now continues the live conversation in place (#8).**
+  The desktop and web runtimes keep opened conversations live, and
+  `persistence.prepare` rejects live sessions, so the old first tier
+  (`agents.resume`) always threw and every continuation silently fell through to
+  a fork — with no note and no run flags. A live source is now driven through its
+  own agent after a bounded idle wait (`min(task timeout, 30s)`): the run lands in
+  the original conversation under the same session id, and only a source that
+  never becomes idle degrades to a branch, with the real reason recorded in
+  `resumeNote` instead of a silent green "new session" line.
+- **Borrowed conversations are handed back untouched.**
+  The task permission preset is captured once and restored in `finally` before
+  the session flush on every exit path (done / failed / aborted / timeout /
+  throw), including the cold `agents.resume` tier; `custom`, empty, unreadable or
+  out-of-catalog presets refuse the original-session path and fall back safely.
+  A borrowed conversation is no longer attached to the task workspace and no
+  longer renamed, on both the entry and the post-run path.
+- **Continuation consistency guards.**
+  A live conversation is reused only when the canonical cwd, provider, model, an
+  explicitly requested reasoning effort and an empty inbox match the task. Any
+  mismatch degrades through the existing resume → fork → fresh tiers with a
+  truthful, specific `resumeNote`.
+- **Review independence and run flags.**
+  The review strategy's critique call no longer receives `resumeSessionId`, so
+  the second opinion always runs in an independent fresh session. The single
+  strategy and the first review call now report `resumed` / `forked` in the run
+  record, so the UI can show which continuation path was actually taken.
+
+### Verified
+
+- CI matrix (ubuntu-latest / windows-latest × Node 22 / 24): build, typecheck and
+  the full test suite pass.
+- Local Windows / Node 24: plugin **237** and core **60** unit cases pass; the
+  **32** new continuation cases pass three consecutive runs; build and strict
+  typecheck are clean.
+- An isolated DSH **0.2.2-rc.3** web profile (own home, port and model route)
+  verified the live, cold, busy, review and plain-task paths end to end: the
+  continuation turn lands in the original session with the permission preset
+  restored before flush, a busy source degrades after the 30 s cap with an honest
+  note, and a borrowed session is neither attached nor retitled.
+- A `main` control run reproduced the old behaviour — a silent fork with no
+  `resumed`/`forked`/`resumeNote`, and a cold resume that left the task preset on
+  the user's conversation — confirming the fix.
+
+### Notes
+
+- No configuration or state migration: `lowtide.json` is unchanged and the five
+  host peer ranges stay `>=0.1.0-rc.7 <0.2.3-0`.
+
 ## [0.3.0] - 2026-11-10
 
 ### Fixed
